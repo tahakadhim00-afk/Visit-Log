@@ -1,0 +1,7 @@
+google_fonts:
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: google_fonts/Cairo-Regular.ttf
+        - asset: google_fonts/Cairo-Bold.ttf
+          weight: 700
