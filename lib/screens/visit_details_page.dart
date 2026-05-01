@@ -83,7 +83,6 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -98,7 +97,6 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
             const Text(
               'تأكيد الحذف',
               style: TextStyle(
-                color: Colors.black87,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -108,7 +106,6 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
         content: const Text(
           'هل أنت متأكد من حذف هذه الزيارة؟\nلن تتمكن من استرجاعها بعد الحذف.',
           style: TextStyle(
-            color: Colors.black54,
             fontSize: 16,
             height: 1.5,
           ),
@@ -306,17 +303,15 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
   }
 
   Widget _buildVisitCard(Visit visit, int visitNumber) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey[300]!,
-          width: 1,
-        ),
+        border: Border.all(color: cs.outlineVariant, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -328,7 +323,9 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.green[50]!,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.green[900]!.withValues(alpha: 0.4)
+                  : Colors.green[50]!,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
@@ -395,12 +392,12 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                         size: 20,
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'وقت الزيارة',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black54,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       const Spacer(),
@@ -434,12 +431,12 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                         size: 20,
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'تفاصيل الزيارة',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black54,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -449,14 +446,18 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50]!,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.blue[900]!.withValues(alpha: 0.4)
+                          : Colors.blue[50]!,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       visit.visitDetails!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.blue[700]!,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.blue[200]!
+                            : Colors.blue[700]!,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.right,
@@ -477,12 +478,12 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                         size: 20,
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'الملاحظات',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black54,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -492,14 +493,18 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.purple[50]!,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.purple[900]!.withValues(alpha: 0.4)
+                          : Colors.purple[50]!,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       visit.notes!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.purple[700]!,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.purple[200]!
+                            : Colors.purple[700]!,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.right,

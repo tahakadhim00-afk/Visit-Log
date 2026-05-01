@@ -33,7 +33,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildDrawer() {
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       child: Column(
         children: [
           const DrawerHeader(
@@ -151,12 +151,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[300]!, width: 1),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.3),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -173,10 +173,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Text(
               '${arabicMonths[displayMonth.month - 1]} ${displayMonth.year}',
               
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -191,12 +191,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildNavButton({required IconData icon, required VoidCallback onPressed}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.blue[50]!,
+        color: isDark ? Colors.blue[900]!.withValues(alpha: 0.4) : Colors.blue[50]!,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: Colors.blue[300]!,
+          color: isDark ? Colors.blue[700]! : Colors.blue[300]!,
           width: 1,
         ),
       ),
@@ -214,10 +215,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildCalendarGrid() {
     final lastDayOfMonth = DateTime(displayMonth.year, displayMonth.month + 1, 0);
     
-    // Create list of all days in the month
+    // Create list of all days in the month, excluding Fridays
     List<DateTime> monthDays = [];
     for (int day = 1; day <= lastDayOfMonth.day; day++) {
-      monthDays.add(DateTime(displayMonth.year, displayMonth.month, day));
+      final date = DateTime(displayMonth.year, displayMonth.month, day);
+      if (date.weekday != DateTime.friday) {
+        monthDays.add(date);
+      }
     }
 
     return Container(
@@ -270,7 +274,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
         title: const Text(
           'معلومات التطبيق',
           style: TextStyle(
@@ -346,12 +349,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[300]!, width: 1),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.3),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -376,10 +379,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.blue[50]!,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.blue[900]!.withValues(alpha: 0.4)
+              : Colors.blue[50]!,
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: Colors.blue[300]!,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.blue[700]!
+                : Colors.blue[300]!,
             width: 1,
           ),
         ),
@@ -395,8 +402,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Text(
               title,
               
-              style: const TextStyle(
-                color: Colors.black87,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),

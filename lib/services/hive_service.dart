@@ -9,6 +9,7 @@ class HiveService {
     await Hive.initFlutter();
     Hive.registerAdapter(VisitAdapter());
     _visitBox = await Hive.openBox<Visit>(_visitBoxName);
+    await Hive.openBox('settings');
   }
 
   static Box<Visit> get visitBox {

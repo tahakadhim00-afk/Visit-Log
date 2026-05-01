@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../services/backup_service.dart';
+import '../services/theme_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -25,6 +26,10 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildSectionTitle('المظهر'),
+              const SizedBox(height: 16),
+              _buildThemeCard(),
+              const SizedBox(height: 24),
               _buildSectionTitle('نسخ احتياطي'),
               const SizedBox(height: 16),
               _buildBackupCard(),
@@ -43,22 +48,72 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
+    );
+  }
+
+  Widget _buildThemeCard() {
+    return ValueListenableBuilder(
+      valueListenable: ThemeNotifier.instance,
+      builder: (context, _, __) {
+        final isDark = ThemeNotifier.instance.isDark;
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isDark ? Icons.dark_mode : Icons.light_mode,
+                color: Colors.indigo,
+                size: 24,
+              ),
+            ),
+            title: const Text(
+              'الوضع الليلي',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              isDark ? 'مفعّل' : 'معطّل',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            trailing: Switch(
+              value: isDark,
+              activeThumbColor: Colors.indigo,
+              onChanged: (_) => ThemeNotifier.instance.toggleTheme(),
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildBackupCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -118,7 +173,7 @@ class _SettingsPageState extends State<SettingsPage> {
         subtitle,
         style: TextStyle(
           fontSize: 14,
-          color: Colors.grey[600],
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
       ),
       onTap: _isLoading ? null : onTap,

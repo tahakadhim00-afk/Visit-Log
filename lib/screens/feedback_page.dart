@@ -35,13 +35,13 @@ class FeedbackPage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
-              _buildContactCard(),
+              _buildContactCard(context),
               const Spacer(),
-              const Text(
+              Text(
                 'نحن نقدر آراءكم وملاحظاتكم',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -53,15 +53,16 @@ class FeedbackPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContactCard() {
+  Widget _buildContactCard(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -69,19 +70,20 @@ class FeedbackPage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(20),
+          Padding(
+            padding: const EdgeInsets.all(20),
             child: Text(
               'اختر طريقة التواصل',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cs.onSurface,
               ),
             ),
           ),
           const Divider(height: 1),
           _buildContactOption(
+            context: context,
             icon: Icons.chat,
             title: 'واتساب',
             subtitle: '[redacted]',
@@ -90,6 +92,7 @@ class FeedbackPage extends StatelessWidget {
           ),
           const Divider(height: 1),
           _buildContactOption(
+            context: context,
             icon: Icons.email,
             title: 'بريد إلكتروني',
             subtitle: 'tahakadhim00@gmail.com',
@@ -102,12 +105,14 @@ class FeedbackPage extends StatelessWidget {
   }
 
   Widget _buildContactOption({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
     required Color color,
     required VoidCallback onTap,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       leading: Container(
@@ -116,31 +121,17 @@ class FeedbackPage extends StatelessWidget {
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: color,
-          size: 28,
-        ),
+        child: Icon(icon, color: color, size: 28),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 14,
-          color: Colors.grey[600],
-        ),
+        style: TextStyle(fontSize: 14, color: cs.onSurface.withValues(alpha: 0.6)),
       ),
-      trailing: Icon(
-        Icons.arrow_back_ios,
-        color: Colors.grey[400],
-        size: 16,
-      ),
+      trailing: Icon(Icons.arrow_back_ios, color: cs.onSurface.withValues(alpha: 0.4), size: 16),
       onTap: onTap,
     );
   }

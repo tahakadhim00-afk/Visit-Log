@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/visit.dart';
 import '../services/hive_service.dart';
 import '../screens/add_visit_page.dart';
@@ -37,9 +36,7 @@ class _DayTileState extends State<DayTile> {
   @override
   void didUpdateWidget(DayTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.date != widget.date) {
-      _loadVisit();
-    }
+    _loadVisit();
   }
 
   void _loadVisit() {
@@ -76,29 +73,6 @@ class _DayTileState extends State<DayTile> {
         ),
         child: Stack(
           children: [
-            if (visits.isNotEmpty)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green[500]!,
-                    shape: visits.length == 1 ? BoxShape.circle : BoxShape.rectangle,
-                    borderRadius: visits.length == 1 ? null : BorderRadius.circular(8),
-                  ),
-                  child: visits.length == 1
-                      ? const SizedBox.shrink()
-                      : Text(
-                          '${visits.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-              ),
             Padding(
               padding: const EdgeInsets.all(10.0),
               child: Column(
@@ -130,75 +104,33 @@ class _DayTileState extends State<DayTile> {
                     Expanded(
                       child: Container(
                         margin: const EdgeInsets.only(top: 6),
-                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.green[50]!,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.green[900]!.withValues(alpha: 0.4)
+                              : Colors.green[50]!,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
-                          child: visits.length == 1
-                              ? Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      visits.first.schoolName,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.green[700]!,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.3,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (visits.first.visitTime != null)
-                                      Container(
-                                        margin: const EdgeInsets.only(top: 4),
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green[100]!,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          DateFormat('HH:mm').format(visits.first.visitTime!),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.green[700]!,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                )
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${visits.length} زيارات',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.green[700]!,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.3,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      visits.map((v) => v.schoolName).join('، '),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.green[600]!,
-                                        fontWeight: FontWeight.w400,
-                                        height: 1.2,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.green[600]!,
+                                size: 26,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${visits.length}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.green[700]!,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1,
                                 ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )
@@ -208,13 +140,17 @@ class _DayTileState extends State<DayTile> {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.grey[200]!,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[700]!
+                                : Colors.grey[200]!,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             Icons.add,
                             size: 20,
-                            color: Colors.grey[500]!,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[400]!
+                                : Colors.grey[500]!,
                           ),
                         ),
                       ),
@@ -260,29 +196,19 @@ class _DayTileState extends State<DayTile> {
   }
 
   Color _getBackgroundColor(bool isToday, bool isFriday) {
-    if (!widget.isCurrentMonth) {
-      return Colors.grey[300]!;
-    } else if (isFriday) {
-      return Colors.red[50]!;
-    } else if (isToday) {
-      return Colors.blue[50]!;
-    } else if (visits.isNotEmpty) {
-      return Colors.white;
-    } else {
-      return Colors.grey[50]!;
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (!widget.isCurrentMonth) return isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    if (isFriday) return isDark ? Colors.red[900]!.withValues(alpha: 0.4) : Colors.red[50]!;
+    if (isToday) return isDark ? Colors.blue[900]!.withValues(alpha: 0.5) : Colors.blue[50]!;
+    return isDark ? const Color(0xFF1E1E2E) : Colors.grey[50]!;
   }
 
   Color _getTextColor(bool isToday, bool isFriday) {
-    if (!widget.isCurrentMonth) {
-      return Colors.grey[400]!;
-    } else if (isFriday) {
-      return Colors.red[600]!;
-    } else if (isToday) {
-      return Colors.blue[700]!;
-    } else {
-      return Colors.black87;
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (!widget.isCurrentMonth) return isDark ? Colors.grey[500]! : Colors.grey[400]!;
+    if (isFriday) return isDark ? Colors.red[300]! : Colors.red[600]!;
+    if (isToday) return isDark ? Colors.blue[300]! : Colors.blue[700]!;
+    return Theme.of(context).colorScheme.onSurface;
   }
 
   bool _isToday(DateTime date) {
@@ -301,18 +227,15 @@ class _DayTileState extends State<DayTile> {
     if (!widget.isCurrentMonth) return;
 
     if (visits.isNotEmpty) {
-      final result = await Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => VisitDetailsPage(date: widget.date),
         ),
       );
-      
-      if (result == 'deleted' || result == 'updated') {
-        _loadVisit();
-        setState(() {});
-        widget.onVisitChanged();
-      }
+      // Always reload after returning — visits may have been added, edited, or deleted
+      setState(() => _loadVisit());
+      widget.onVisitChanged();
     } else {
       final result = await Navigator.push(
         context,
@@ -320,10 +243,9 @@ class _DayTileState extends State<DayTile> {
           builder: (context) => AddVisitPage(selectedDate: widget.date),
         ),
       );
-      
+
       if (result == true) {
-        _loadVisit();
-        setState(() {});
+        setState(() => _loadVisit());
         widget.onVisitChanged();
       }
     }
