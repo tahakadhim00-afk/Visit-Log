@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/hive_service.dart';
+import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'screens/calendar_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await HiveService.init();
+  await NotificationService.init();
+  await NotificationService.scheduleWeeklyNotifications();
   runApp(const VisitLogApp());
 }
 
