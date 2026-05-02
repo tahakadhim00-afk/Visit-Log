@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../widgets/day_tile.dart';
 import '../services/export_service.dart';
+import '../services/settings_service.dart';
 import 'settings_page.dart';
 import 'feedback_page.dart';
+import 'profile_page.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -127,6 +130,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  Widget _buildProfileButton() {
+    final photoPath = SettingsService.profilePhotoPath;
+    final hasPhoto = photoPath != null && File(photoPath).existsSync();
+    return Padding(
+      padding: const EdgeInsets.only(left: 10),
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfilePage()),
+        ).then((_) => setState(() {})),
+        child: CircleAvatar(
+          radius: 18,
+          backgroundColor: Colors.white24,
+          backgroundImage: hasPhoto ? FileImage(File(photoPath)) : null,
+          child: !hasPhoto
+              ? const Icon(Icons.person, color: Colors.white, size: 22)
+              : null,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -134,6 +159,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Scaffold(
       appBar: AppBar(
         title: const Text('سجل الزيارات'),
+        actions: [_buildProfileButton()],
       ),
       drawer: _buildDrawer(),
       body: Column(
