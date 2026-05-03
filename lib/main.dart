@@ -77,9 +77,12 @@ class VisitLogApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.blue,
               brightness: Brightness.dark,
+              surface: const Color(0xFF1A1A1A),
+              surfaceContainerHighest: const Color(0xFF1A1A1A),
+              onSurface: Colors.white,
             ),
             appBarTheme: AppBarTheme(
-              backgroundColor: const Color(0xFF1E1E2E),
+              backgroundColor: Colors.black,
               foregroundColor: Colors.white,
               elevation: 0,
               centerTitle: true,
@@ -90,8 +93,18 @@ class VisitLogApp extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            cardColor: const Color(0xFF1E1E2E),
+            scaffoldBackgroundColor: Colors.black,
+            cardColor: const Color(0xFF1A1A1A),
+            drawerTheme: const DrawerThemeData(
+              backgroundColor: Color(0xFF1A1A1A),
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Color(0xFF1A1A1A),
+            ),
+            bottomSheetTheme: const BottomSheetThemeData(
+              backgroundColor: Color(0xFF1A1A1A),
+            ),
+            dividerColor: const Color(0xFF2A2A2A),
             textTheme: GoogleFonts.cairoTextTheme(
               ThemeData.dark().textTheme,
             ),

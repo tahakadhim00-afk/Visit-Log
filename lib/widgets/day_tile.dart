@@ -56,9 +56,13 @@ class _DayTileState extends State<DayTile> {
           color: _getBackgroundColor(isToday, isFriday),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isFriday 
-              ? Colors.red[300]! 
-              : (isToday ? Colors.blue[700]! : Colors.grey[300]!),
+            color: isFriday
+              ? Colors.red[300]!
+              : (isToday
+                  ? Colors.blue[700]!
+                  : (Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF2A2A2A)
+                      : Colors.grey[300]!)),
             width: isToday ? 2 : 1,
           ),
           boxShadow: [
@@ -200,7 +204,7 @@ class _DayTileState extends State<DayTile> {
     if (!widget.isCurrentMonth) return isDark ? Colors.grey[800]! : Colors.grey[300]!;
     if (isFriday) return isDark ? Colors.red[900]!.withValues(alpha: 0.4) : Colors.red[50]!;
     if (isToday) return isDark ? Colors.blue[900]!.withValues(alpha: 0.5) : Colors.blue[50]!;
-    return isDark ? const Color(0xFF1E1E2E) : Colors.grey[50]!;
+    return isDark ? Colors.black : Colors.grey[50]!;
   }
 
   Color _getTextColor(bool isToday, bool isFriday) {
