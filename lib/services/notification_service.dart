@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -12,24 +13,35 @@ class NotificationService {
   static const _channelName = 'تذكير الزيارات';
   static const _channelDesc = 'تذكير يومي بتسجيل الزيارات';
 
-  // جميع أيام الأسبوع ما عدا الجمعة (5)
   static const List<int> _activeDays = [
-    DateTime.monday,    // 1
-    DateTime.tuesday,   // 2
-    DateTime.wednesday, // 3
-    DateTime.thursday,  // 4
-    DateTime.saturday,  // 6
-    DateTime.sunday,    // 7
+    DateTime.monday,
+    DateTime.tuesday,
+    DateTime.wednesday,
+    DateTime.thursday,
+    DateTime.saturday,
+    DateTime.sunday,
   ];
 
-  static Future<void> init() async {
-    tz.initializeTimeZones();
-    final timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  static bool _initialized = false;
 
-    const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
-    const settings = InitializationSettings(android: androidInit);
-    await _plugin.initialize(settings);
+  static Future<void> init() async {
+    if (!Platform.isAndroid) return;
+    try {
+      tz.initializeTimeZones();
+      try {
+        final timeZoneName = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(timeZoneName));
+      } catch (_) {
+        tz.setLocalLocation(tz.getLocation('UTC'));
+      }
+
+      const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
+      const settings = InitializationSettings(android: androidInit);
+      await _plugin.initialize(settings);
+      _initialized = true;
+    } catch (_) {
+      _initialized = false;
+    }
   }
 
   static Future<bool> requestPermission() async {
@@ -39,6 +51,7 @@ class NotificationService {
   }
 
   static Future<void> scheduleWeeklyNotifications() async {
+    if (!_initialized) return;
     await _plugin.cancelAll();
 
     if (!SettingsService.notificationsEnabled) return;
@@ -84,5 +97,8 @@ class NotificationService {
     return dt;
   }
 
-  static Future<void> cancelAll() => _plugin.cancelAll();
+  static Future<void> cancelAll() async {
+    if (!_initialized) return;
+    await _plugin.cancelAll();
+  }
 }

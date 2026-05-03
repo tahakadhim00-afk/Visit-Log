@@ -20,13 +20,14 @@ class VisitDetailsPage extends StatefulWidget {
 
 class _VisitDetailsPageState extends State<VisitDetailsPage> {
   List<Visit> visits = [];
+
   final List<String> arabicMonths = [
     'كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران',
-    'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'
+    'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول',
   ];
 
   final List<String> arabicDays = [
-    'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
+    'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت',
   ];
 
   @override
@@ -54,11 +55,8 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
   Future<void> _editVisit(Visit visit) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => EditVisitPage(visit: visit),
-      ),
+      MaterialPageRoute(builder: (context) => EditVisitPage(visit: visit)),
     );
-
     if (result != null && result is Visit) {
       _loadVisits();
       setState(() {});
@@ -68,11 +66,8 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
   Future<void> _addVisit() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => AddVisitPage(selectedDate: widget.date),
-      ),
+      MaterialPageRoute(builder: (context) => AddVisitPage(selectedDate: widget.date)),
     );
-
     if (result == true) {
       _loadVisits();
       setState(() {});
@@ -83,61 +78,35 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(
-              Icons.warning_rounded,
-              color: Colors.red[600]!,
-              size: 28,
-            ),
+            Icon(Icons.warning_rounded, color: Colors.red[600]!, size: 28),
             const SizedBox(width: 12),
             const Text(
               'تأكيد الحذف',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ],
         ),
         content: const Text(
           'هل أنت متأكد من حذف هذه الزيارة؟\nلن تتمكن من استرجاعها بعد الحذف.',
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.5,
-          ),
+          style: TextStyle(fontSize: 16, height: 1.5),
           textAlign: TextAlign.center,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'إلغاء',
-              style: TextStyle(
-                color: Colors.grey[600]!,
-                fontSize: 16,
-              ),
-            ),
+            child: Text('إلغاء', style: TextStyle(color: Colors.grey[600]!, fontSize: 16)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[600]!,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text(
-              'حذف',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: const Text('حذف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -145,10 +114,9 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
 
     if (shouldDelete == true) {
       await HiveService.deleteVisit(visit.id);
-      
       _loadVisits();
       setState(() {});
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -159,21 +127,16 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                 SizedBox(width: 8),
                 Text(
                   'تم حذف الزيارة بنجاح',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
             backgroundColor: Colors.red[600]!,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
-        
+
         if (visits.isEmpty) {
           Navigator.pop(context, 'deleted');
         }
@@ -186,146 +149,146 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-      appBar: AppBar(
-        title: Text('زيارات ${_formatArabicDate(widget.date)}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _addVisit,
-          ),
-        ],
-      ),
-      body: visits.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.event_note,
-                    size: 80,
-                    color: Colors.grey[400]!,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'لا توجد زيارات في هذا اليوم',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600]!,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: _addVisit,
-                    icon: const Icon(Icons.add),
-                    label: const Text('إضافة زيارة جديدة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600]!,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Date Header
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.blue[600]!,
-                          Colors.blue[400]!,
-                        ],
+        appBar: AppBar(
+          title: Text('زيارات ${_formatArabicDate(widget.date)}'),
+          backgroundColor: Colors.black,
+          elevation: 0,
+          actions: [
+            IconButton(icon: const Icon(Icons.add), onPressed: _addVisit),
+          ],
+        ),
+        body: Stack(
+          children: [
+            if (visits.isEmpty)
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.event_note, size: 80, color: Colors.grey[400]!),
+                    const SizedBox(height: 16),
+                    Text(
+                      'لا توجد زيارات في هذا اليوم',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600]!,
+                        fontWeight: FontWeight.w500,
                       ),
-                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _formatArabicDate(widget.date),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'إجمالي الزيارات: ${visits.length}',
+                    const SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: _addVisit,
+                      icon: const Icon(Icons.add),
+                      label: const Text('إضافة زيارة جديدة'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal[600]!,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.teal[600]!,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Colors.white, size: 32),
+                          const SizedBox(height: 12),
+                          Text(
+                            _formatArabicDate(widget.date),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'إجمالي الزيارات: ${visits.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Visits List
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: visits.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final visit = visits[index];
-                      return _buildVisitCard(visit, index + 1);
-                    },
-                  ),
-                ],
+
+                    const SizedBox(height: 24),
+
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: visits.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        return _buildVisitCard(visits[index], index + 1);
+                      },
+                    ),
+                  ],
+                ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _blurCard({required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.7),
+              width: 1,
             ),
+          ),
+          child: child,
+        ),
       ),
     );
   }
 
   Widget _buildVisitCard(Visit visit, int visitNumber) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outlineVariant, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return _blurCard(
       child: Column(
         children: [
-          // Visit Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.green[900]!.withValues(alpha: 0.4)
-                  : Colors.green[50]!,
+              color: isDark
+                  ? Colors.grey[800]!.withValues(alpha: 0.4)
+                  : Colors.grey[100]!,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
@@ -336,7 +299,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green[600]!,
+                    color: Colors.grey[600]!,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -352,10 +315,10 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                 Expanded(
                   child: Text(
                     visit.schoolName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.green[700]!,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -364,7 +327,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                   children: [
                     IconButton(
                       onPressed: () => _editVisit(visit),
-                      icon: Icon(Icons.edit, color: Colors.blue[600]!),
+                      icon: Icon(Icons.edit, color: Colors.teal[600]!),
                       tooltip: 'تعديل',
                     ),
                     IconButton(
@@ -377,8 +340,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
               ],
             ),
           ),
-          
-          // Visit Details
+
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -386,11 +348,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                 if (visit.visitTime != null)
                   Row(
                     children: [
-                      Icon(
-                        Icons.access_time,
-                        color: Colors.orange[600]!,
-                        size: 20,
-                      ),
+                      Icon(Icons.access_time, color: Colors.orange[600]!, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         'وقت الزيارة',
@@ -418,18 +376,13 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                       ),
                     ],
                   ),
-                
-                // Visit Details Section
+
                 if (visit.visitDetails != null && visit.visitDetails!.isNotEmpty) ...[
                   if (visit.visitTime != null) const SizedBox(height: 16),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.assignment,
-                        color: Colors.blue[600]!,
-                        size: 20,
-                      ),
+                      Icon(Icons.assignment, color: Colors.teal[600]!, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         'تفاصيل الزيارة',
@@ -446,37 +399,31 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.blue[900]!.withValues(alpha: 0.4)
-                          : Colors.blue[50]!,
+                      color: isDark
+                          ? Colors.teal[900]!.withValues(alpha: 0.4)
+                          : Colors.teal[50]!,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       visit.visitDetails!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.blue[200]!
-                            : Colors.blue[700]!,
+                        color: isDark ? Colors.teal[200]! : Colors.teal[700]!,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.right,
                     ),
                   ),
                 ],
-                
-                // Notes Section
+
                 if (visit.notes != null && visit.notes!.isNotEmpty) ...[
-                  if (visit.visitDetails != null && visit.visitDetails!.isNotEmpty || visit.visitTime != null) 
+                  if (visit.visitDetails != null && visit.visitDetails!.isNotEmpty ||
+                      visit.visitTime != null)
                     const SizedBox(height: 16),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.note_alt,
-                        color: Colors.purple[600]!,
-                        size: 20,
-                      ),
+                      Icon(Icons.note_alt, color: Colors.purple[600]!, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         'الملاحظات',
@@ -493,7 +440,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
+                      color: isDark
                           ? Colors.purple[900]!.withValues(alpha: 0.4)
                           : Colors.purple[50]!,
                       borderRadius: BorderRadius.circular(8),
@@ -502,9 +449,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                       visit.notes!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.purple[200]!
-                            : Colors.purple[700]!,
+                        color: isDark ? Colors.purple[200]! : Colors.purple[700]!,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.right,

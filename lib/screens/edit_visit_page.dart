@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../constants/visit_types.dart';
 import '../models/visit.dart';
 import '../services/hive_service.dart';
 
@@ -22,70 +23,6 @@ class _EditVisitPageState extends State<EditVisitPage> {
   late TextEditingController _notesController;
   int? _selectedVisitTypeIndex;
 
-  static const List<String?> _visitTypeOptions = [
-    'صديق ناقد',
-    'متابعة امتحانية',
-    'اختصاص',
-    'تحقق',
-    'لجنة تحقيقية',
-    'دوام',
-    'ايفاد',
-    'مسابقات',
-    'اجتماع',
-    'ندوة توجيهيه',
-    'لجنة الحوانيت',
-    'لجنة تنظيم الدوام',
-    'لجنة تقييم الاسئلة',
-    'لجنة معالجة الملاك',
-    'لجنة اعتراضات',
-    'لجنة تسوية الملاك',
-    'لجنة تدقيق القيود',
-    'لجنة التدقيق القطاعي',
-    'لجنة التقييم الخارجي',
-    'لجنة الاستضافة',
-    'لجنة الانتساب',
-    'دورة تدريبية',
-    'درس تدريبي',
-    'اللجنة الفرعية للامتحانات',
-    'مركز فحص الدراسة الابتدائية',
-    'مركز فحص الدراسة المتوسطة',
-    'مركز فحص الدراسة الاعدادية',
-    'ورشة تدريبية',
-    'حلقة نقاشية',
-    'مداولة',
-    'عطلة رسمية',
-    'اجازة',
-    'تواجد',
-    'ورشة عمل',
-    null,
-    'مركز امتحان وزاري',
-    'مركز امتحان تمهيدي',
-    'بيان رأي',
-    'مطالعة',
-    'لجنة الامتحان الخارجي',
-    'لجنة',
-    'تفرغ علمي',
-    'ورشة عمل',
-    'عطلة محلية',
-    'مناظرة علمية',
-    'لجنة تدقيق القبولات',
-    'لجنة حقوق الانسان',
-    'نظام EMIS',
-    'تفرغ جزئي',
-    'حملة العودة الى التعليم',
-    'اختبار اللغة الفرنسية',
-    'متابعة سير التدريسات',
-    'اجراء اللازم',
-    null,
-    'اجراء انفكاك و مباشر',
-    null,
-    'تحقيق وزاري',
-    'معايشة',
-    'تواجد الاختصاصين الادارين',
-    'لجنة وزارية',
-    'غير ذلك',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -94,7 +31,7 @@ class _EditVisitPageState extends State<EditVisitPage> {
     _notesController = TextEditingController(text: widget.visit.notes ?? '');
     final existing = widget.visit.visitDetails;
     if (existing != null) {
-      final idx = _visitTypeOptions.indexOf(existing);
+      final idx = kVisitTypeOptions.indexOf(existing);
       if (idx != -1) _selectedVisitTypeIndex = idx;
     }
   }
@@ -107,7 +44,6 @@ class _EditVisitPageState extends State<EditVisitPage> {
     super.dispose();
   }
 
-
   Future<void> _saveVisit() async {
     if (_schoolController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,9 +55,7 @@ class _EditVisitPageState extends State<EditVisitPage> {
           ),
           backgroundColor: Colors.red[600]!,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
       return;
@@ -129,17 +63,17 @@ class _EditVisitPageState extends State<EditVisitPage> {
 
     final updatedVisit = widget.visit.copyWith(
       schoolName: _schoolController.text.trim(),
-      visitDetails: _visitDetailsController.text.trim().isNotEmpty 
-          ? _visitDetailsController.text.trim() 
+      visitDetails: _visitDetailsController.text.trim().isNotEmpty
+          ? _visitDetailsController.text.trim()
           : null,
-      notes: _notesController.text.trim().isNotEmpty 
-          ? _notesController.text.trim() 
+      notes: _notesController.text.trim().isNotEmpty
+          ? _notesController.text.trim()
           : null,
       visitTime: null,
     );
 
     await HiveService.updateVisit(updatedVisit);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -150,24 +84,18 @@ class _EditVisitPageState extends State<EditVisitPage> {
               SizedBox(width: 8),
               Text(
                 'تم تحديث الزيارة بنجاح',
-                    style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
               ),
             ],
           ),
           backgroundColor: Colors.green[600]!,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
       Navigator.pop(context, updatedVisit);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -184,234 +112,211 @@ class _EditVisitPageState extends State<EditVisitPage> {
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('تعديل الزيارة'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Date Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue[600]!,
-                    Colors.blue[400]!,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.edit_calendar,
-                    color: Colors.white,
-                    size: 32,
+        appBar: AppBar(
+          title: const Text('تعديل الزيارة'),
+          backgroundColor: Colors.black,
+          elevation: 0,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.teal[600]!, Colors.teal[400]!],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    DateFormat('EEEE', 'ar').format(widget.visit.date),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('dd MMMM yyyy', 'ar').format(widget.visit.date),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // School Name Field
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('اسم المكان *', textAlign: TextAlign.right, style: labelStyle),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: fieldDecor,
-                  child: TextField(
-                    controller: _schoolController,
-                    textAlign: TextAlign.right,
-                    style: inputStyle.copyWith(fontSize: 18),
-                    decoration: InputDecoration(
-                      hintText: 'أدخل اسم المكان',
-                      hintStyle: hintStyle.copyWith(fontSize: 16),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Visit Details Field
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('تفاصيل الزيارة', textAlign: TextAlign.right, style: labelStyle),
-                ),
-                const SizedBox(height: 12),
-
-                Container(
-                  decoration: fieldDecor,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _selectedVisitTypeIndex,
-                      isExpanded: true,
-                      dropdownColor: cs.surface,
-                      hint: Text('اختر نوع الزيارة', textAlign: TextAlign.right, style: hintStyle),
-                      items: List.generate(_visitTypeOptions.length, (i) {
-                        final option = _visitTypeOptions[i];
-                        if (option == null) {
-                          return DropdownMenuItem<int>(
-                            value: -(i + 1),
-                            enabled: false,
-                            child: const Divider(height: 1),
-                          );
-                        }
-                        return DropdownMenuItem<int>(
-                          value: i,
-                          child: Text(
-                            option,
-                            textAlign: TextAlign.right,
-                            style: TextStyle(color: cs.onSurface, fontSize: 15),
-                          ),
-                        );
-                      }),
-                      onChanged: (int? i) {
-                        if (i != null && i >= 0) {
-                          setState(() {
-                            _selectedVisitTypeIndex = i;
-                            _visitDetailsController.text = _visitTypeOptions[i]!;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Container(
-                  decoration: fieldDecor,
-                  child: TextField(
-                    controller: _visitDetailsController,
-                    textAlign: TextAlign.right,
-                    style: inputStyle,
-                    decoration: InputDecoration(
-                      hintText: 'أو اكتب تفاصيل الزيارة يدوياً...',
-                      hintStyle: hintStyle,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Notes Field
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('الملاحظات', textAlign: TextAlign.right, style: labelStyle),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: fieldDecor,
-                  child: TextField(
-                    controller: _notesController,
-                    textAlign: TextAlign.right,
-                    maxLines: 3,
-                    style: inputStyle,
-                    decoration: InputDecoration(
-                      hintText: 'أضف ملاحظات إضافية إن وجدت...',
-                      hintStyle: hintStyle,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 40),
-            
-            // Save Button
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue[600]!,
-                    Colors.blue[400]!,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue[600]!.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: _saveVisit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
                   children: [
-                    Icon(Icons.save, size: 24),
-                    SizedBox(width: 12),
+                    const Icon(Icons.edit_calendar, color: Colors.white, size: 32),
+                    const SizedBox(height: 12),
                     Text(
-                      'حفظ التغييرات',
-                                style: TextStyle(
+                      DateFormat('EEEE', 'ar').format(widget.visit.date),
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('dd MMMM yyyy', 'ar').format(widget.visit.date),
+                      style: const TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
                   ],
                 ),
               ),
-            ),
-            
-            const SizedBox(height: 20),
-          ],
+
+              const SizedBox(height: 32),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('اسم المكان *', textAlign: TextAlign.right, style: labelStyle),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: fieldDecor,
+                    child: TextField(
+                      controller: _schoolController,
+                      textAlign: TextAlign.right,
+                      style: inputStyle.copyWith(fontSize: 18),
+                      decoration: InputDecoration(
+                        hintText: 'أدخل اسم المكان',
+                        hintStyle: hintStyle.copyWith(fontSize: 16),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('تفاصيل الزيارة', textAlign: TextAlign.right, style: labelStyle),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: fieldDecor,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _selectedVisitTypeIndex,
+                        isExpanded: true,
+                        dropdownColor: cs.surface,
+                        hint: Text('اختر نوع الزيارة', textAlign: TextAlign.right, style: hintStyle),
+                        items: List.generate(kVisitTypeOptions.length, (i) {
+                          final option = kVisitTypeOptions[i];
+                          if (option == null) {
+                            return DropdownMenuItem<int>(
+                              value: -(i + 1),
+                              enabled: false,
+                              child: const Divider(height: 1),
+                            );
+                          }
+                          return DropdownMenuItem<int>(
+                            value: i,
+                            child: Text(
+                              option,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(color: cs.onSurface, fontSize: 15),
+                            ),
+                          );
+                        }),
+                        onChanged: (int? i) {
+                          if (i != null && i >= 0) {
+                            setState(() {
+                              _selectedVisitTypeIndex = i;
+                              _visitDetailsController.text = kVisitTypeOptions[i]!;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: fieldDecor,
+                    child: TextField(
+                      controller: _visitDetailsController,
+                      textAlign: TextAlign.right,
+                      style: inputStyle,
+                      decoration: InputDecoration(
+                        hintText: 'أو اكتب تفاصيل الزيارة يدوياً...',
+                        hintStyle: hintStyle,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('الملاحظات', textAlign: TextAlign.right, style: labelStyle),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: fieldDecor,
+                    child: TextField(
+                      controller: _notesController,
+                      textAlign: TextAlign.right,
+                      maxLines: 3,
+                      style: inputStyle,
+                      decoration: InputDecoration(
+                        hintText: 'أضف ملاحظات إضافية إن وجدت...',
+                        hintStyle: hintStyle,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 40),
+
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.teal[600]!, Colors.teal[400]!],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.teal[600]!.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: _saveVisit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.save, size: 24),
+                      SizedBox(width: 12),
+                      Text(
+                        'حفظ التغييرات',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 }

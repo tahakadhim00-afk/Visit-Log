@@ -1,4 +1,4 @@
-import 'dart:ui' as ui;
+﻿import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,6 +12,8 @@ class FeedbackPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('إرسال ملاحظات'),
+          backgroundColor: Colors.black,
+          elevation: 0,
         ),
         body: Container(
           padding: const EdgeInsets.all(24),
@@ -22,7 +24,7 @@ class FeedbackPage extends StatelessWidget {
               const Icon(
                 Icons.feedback,
                 size: 80,
-                color: Colors.blue,
+                color: Colors.teal,
               ),
               const SizedBox(height: 24),
               const Text(
@@ -143,9 +145,7 @@ class FeedbackPage extends StatelessWidget {
       if (await canLaunchUrl(whatsappUri)) {
         await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
       }
-    } catch (e) {
-      // Handle error silently
-    }
+    } catch (_) {}
   }
 
   Future<void> _openGmail() async {
@@ -154,13 +154,11 @@ class FeedbackPage extends StatelessWidget {
       path: 'tahakadhim00@gmail.com',
       query: 'subject=ملاحظات حول تطبيق سجل الزيارات&body=مرحباً،%0A%0Aلدي الملاحظات التالية حول التطبيق:%0A%0A',
     );
-    
+
     try {
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri);
       }
-    } catch (e) {
-      // Handle error silently
-    }
+    } catch (_) {}
   }
 }

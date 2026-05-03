@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
-import '../services/theme_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -18,30 +17,76 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(title: const Text('الإعدادات')),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('المظهر'),
-              const SizedBox(height: 16),
-              _buildThemeCard(),
-              const SizedBox(height: 24),
-              _buildSectionTitle('الإشعارات'),
-              const SizedBox(height: 16),
-              _buildNotificationCard(),
-              const SizedBox(height: 24),
-              _buildSectionTitle('نسخ احتياطي'),
-              const SizedBox(height: 16),
-              _buildBackupCard(),
-              const SizedBox(height: 24),
-              if (_isLoading) const Center(child: CircularProgressIndicator()),
-            ],
-          ),
+        appBar: AppBar(
+          title: const Text('الإعدادات'),
+          backgroundColor: Colors.black,
+          elevation: 0,
+        ),
+        body: Stack(
+          children: [
+            Positioned(
+              top: -80, right: -80,
+              child: _colorBlob(size: 300, color: Colors.teal.withValues(alpha: isDark ? 0.15 : 0.12), blur: 90),
+            ),
+            Positioned(
+              top: -60, left: -60,
+              child: _colorBlob(size: 260, color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05), blur: 85),
+            ),
+            Positioned(
+              top: 280, right: -70,
+              child: _colorBlob(size: 280, color: Colors.teal.withValues(alpha: isDark ? 0.10 : 0.09), blur: 90),
+            ),
+            Positioned(
+              top: 320, left: -70,
+              child: _colorBlob(size: 260, color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04), blur: 85),
+            ),
+            Positioned(
+              bottom: -80, right: -60,
+              child: _colorBlob(size: 300, color: Colors.teal.withValues(alpha: isDark ? 0.12 : 0.10), blur: 90),
+            ),
+            Positioned(
+              bottom: -60, left: -60,
+              child: _colorBlob(size: 260, color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05), blur: 85),
+            ),
+            SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 16, right: 16, bottom: 16,
+                top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('الإشعارات'),
+                  const SizedBox(height: 16),
+                  _buildNotificationCard(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('نسخ احتياطي'),
+                  const SizedBox(height: 16),
+                  _buildBackupCard(),
+                  const SizedBox(height: 24),
+                  if (_isLoading) const Center(child: CircularProgressIndicator()),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _colorBlob({required double size, required Color color, required double blur}) {
+    return ImageFiltered(
+      imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
         ),
       ),
     );
@@ -58,68 +103,33 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildThemeCard() {
-    return ValueListenableBuilder(
-      valueListenable: ThemeNotifier.instance,
-      builder: (context, _, __) {
-        final isDark = ThemeNotifier.instance.isDark;
-        return Container(
+  Widget _blurCard({required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.indigo.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isDark ? Icons.dark_mode : Icons.light_mode,
-                color: Colors.indigo,
-                size: 24,
-              ),
-            ),
-            title: const Text('الوضع الليلي',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            subtitle: Text(
-              isDark ? 'مفعّل' : 'معطّل',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-            trailing: Switch(
-              value: isDark,
-              activeThumbColor: Colors.indigo,
-              onChanged: (_) => ThemeNotifier.instance.toggleTheme(),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.7),
+              width: 1,
             ),
           ),
-        );
-      },
+          child: child,
+        ),
+      ),
     );
   }
 
   Widget _buildNotificationCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return _blurCard(
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -171,18 +181,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildBackupCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return _blurCard(
       child: Column(
         children: [
           _buildBackupOption(

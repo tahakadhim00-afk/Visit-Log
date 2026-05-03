@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/hive_service.dart';
@@ -37,13 +37,13 @@ class VisitLogApp extends StatelessWidget {
           ],
           themeMode: themeMode,
           theme: ThemeData.light().copyWith(
-            primaryColor: Colors.blue[600],
+            primaryColor: Colors.teal[600],
             colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
+              seedColor: Colors.teal,
               brightness: Brightness.light,
             ),
             appBarTheme: AppBarTheme(
-              backgroundColor: Colors.blue[600],
+              backgroundColor: Colors.teal[600],
               foregroundColor: Colors.white,
               elevation: 0,
               centerTitle: true,
@@ -63,7 +63,7 @@ class VisitLogApp extends StatelessWidget {
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[600],
+                backgroundColor: Colors.teal[600],
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -73,9 +73,9 @@ class VisitLogApp extends StatelessWidget {
             ),
           ),
           darkTheme: ThemeData.dark().copyWith(
-            primaryColor: Colors.blue[400],
+            primaryColor: Colors.teal[400],
             colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
+              seedColor: Colors.teal,
               brightness: Brightness.dark,
               surface: const Color(0xFF1A1A1A),
               surfaceContainerHighest: const Color(0xFF1A1A1A),
@@ -113,7 +113,7 @@ class VisitLogApp extends StatelessWidget {
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[400],
+                backgroundColor: Colors.teal[400],
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
