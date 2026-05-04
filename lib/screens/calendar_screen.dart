@@ -114,7 +114,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'النسخة 1.0.0',
+                    'النسخة 2.0.0',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                 ],

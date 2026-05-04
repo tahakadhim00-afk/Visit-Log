@@ -1,5 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import '../services/hive_service.dart';
 import '../services/settings_service.dart';
@@ -23,6 +25,14 @@ class ExportService {
     return _holidayTypes.contains(visitDetails.trim());
   }
 
+  static Future<pw.Font> _loadCairoFont({required bool bold}) async {
+    final asset = bold
+        ? 'lib/assets/fonts/Cairo-Bold.ttf'
+        : 'lib/assets/fonts/Cairo-Regular.ttf';
+    final data = await rootBundle.load(asset);
+    return pw.Font.ttf(data);
+  }
+
   static String _twoDigit(int n) => n.toString().padLeft(2, '0');
 
   static String _isoDate(DateTime date) =>
@@ -31,8 +41,6 @@ class ExportService {
   static String _footerDate(DateTime date) =>
       '${_twoDigit(date.day)}/${_twoDigit(date.month)}/${date.year}';
 
-  // Returns (startYear, endYear) for the academic year containing [date].
-  // Iraqi academic year runs Sep–Jun. Sep–Dec belongs to year/(year+1).
   static (int, int) _academicYear(DateTime date) {
     if (date.month >= 9) {
       return (date.year, date.year + 1);
@@ -45,18 +53,15 @@ class ExportService {
     try {
       final (acadStart, acadEnd) = _academicYear(forMonth);
 
-      // All visits for the exported month, excluding Fridays
       final allMonthVisits = HiveService.getVisitsByMonth(forMonth.year, forMonth.month)
           .where((v) => v.date.weekday != DateTime.friday)
           .toList()
         ..sort((a, b) => a.date.compareTo(b.date));
 
-      // Count actual (non-holiday) visits this month
       final monthlyActual = allMonthVisits
           .where((v) => !_isHoliday(v.visitDetails))
           .length;
 
-      // Cumulative actual visits for the entire academic year up to forMonth
       final acadYearStart = DateTime(acadStart, 9, 1);
       final acadYearEnd = DateTime(forMonth.year, forMonth.month + 1, 1)
           .subtract(const Duration(days: 1));
@@ -68,7 +73,6 @@ class ExportService {
               !_isHoliday(v.visitDetails))
           .length;
 
-      // Supervisor profile
       final supervisorName = SettingsService.supervisorName;
       final specialty = SettingsService.specialty;
       final headName = SettingsService.supervisionHeadName;
@@ -79,197 +83,194 @@ class ExportService {
       final monthName = arabicMonths[forMonth.month - 1];
       final exportDate = _footerDate(DateTime.now());
 
-      final html = StringBuffer();
-      html.write('''<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="UTF-8">
-<style>
-  @page { size: A4 landscape; margin: 1.2cm 1cm; }
-  * { box-sizing: border-box; }
-  body {
-    font-family: "Times New Roman", "Arial", serif;
-    direction: rtl;
-    font-size: 12px;
-    margin: 0;
-    padding: 0;
-    color: #000;
-  }
-  .page-wrap { padding: 6px 8px; }
+      final font     = await _loadCairoFont(bold: false);
+      final fontBold = await _loadCairoFont(bold: true);
 
-  /* ── top header ── */
-  .title-area {
-    position: relative;
-    text-align: center;
-    margin-bottom: 4px;
-    min-height: 42px;
-  }
-  .table-number {
-    font-size: 17px;
-    font-weight: bold;
-    text-align: center;
-    padding-top: 2px;
-    margin: 0;
-  }
-  .ministry-info {
-    position: absolute;
-    top: 0;
-    right: 0;
-    text-align: right;
-    line-height: 1.6;
-    font-size: 12px;
-  }
-  .table-title  { text-align: center; font-size: 14px; font-weight: bold; margin: 2px 0; }
-  .table-sub    { text-align: center; font-size: 12px; margin: 2px 0; }
-  .supervisor-row {
-    display: flex;
-    justify-content: flex-start;
-    gap: 40px;
-    font-size: 12px;
-    margin: 5px 0 4px 0;
-    font-weight: bold;
-  }
+      const headerBg = PdfColor(0.800, 0.878, 0.961); // #cce0f5
+      const evenRowBg = PdfColor(0.969, 0.984, 1.0);  // #f7fbff
 
-  /* ── stats bar ── */
-  .stats-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 6px;
-    font-size: 11.5px;
-  }
-  .stats-table td {
-    border: 1px solid #000;
-    padding: 3px 6px;
-    text-align: center;
-  }
-  .stats-label { background-color: #cce0f5; font-weight: bold; }
-  .stats-value { background-color: #ffffff; min-width: 30px; }
+      final base     = pw.TextStyle(font: font,     fontSize: 10);
+      final bold     = pw.TextStyle(font: fontBold, fontSize: 10);
+      final bigBold  = pw.TextStyle(font: fontBold, fontSize: 17);
+      final title    = pw.TextStyle(font: fontBold, fontSize: 14);
+      final sub      = pw.TextStyle(font: font,     fontSize: 11);
+      final smallBold = pw.TextStyle(font: fontBold, fontSize: 9);
 
-  /* ── main visits table ── */
-  .visits-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11.5px;
-  }
-  .visits-table th, .visits-table td {
-    border: 1px solid #000;
-    padding: 3px 5px;
-    text-align: center;
-    vertical-align: middle;
-  }
-  .visits-table thead tr {
-    background-color: #cce0f5;
-    font-weight: bold;
-    font-size: 12px;
-  }
-  .visits-table tbody tr:nth-child(even) { background-color: #f7fbff; }
-  .col-num   { width: 28px; }
-  .col-day   { width: 70px; }
-  .col-date  { width: 90px; }
-  .col-school{ width: auto; }
-  .col-detail{ width: 160px; }
-  .col-notes { width: 180px; }
+      pw.Widget txt(String text, pw.TextStyle style,
+              {pw.TextAlign align = pw.TextAlign.right}) =>
+          pw.Text(text,
+              style: style,
+              textDirection: pw.TextDirection.rtl,
+              textAlign: align);
 
-  /* ── footer ── */
-  .footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 18px;
-    font-size: 12px;
-  }
-  .footer-block { line-height: 1.9; }
-</style>
-</head>
-<body>
-<div class="page-wrap">
+      pw.Widget cell(String text,
+              {bool header = false,
+              PdfColor? bg,
+              pw.TextAlign align = pw.TextAlign.center}) =>
+          pw.Container(
+            color: bg,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            child: txt(text, header ? bold : base, align: align),
+          );
 
-  <!-- Title + ministry info (same vertical area) -->
-  <div class="title-area">
-    <div class="table-number">جدول رقم (1)</div>
-    <div class="ministry-info">
-      <div>المديرية العامة لتربية محافظة بابل</div>
-      <div>قسم الإشراف الاختصاصي</div>
-    </div>
-  </div>
+      pw.Widget statsCell(String text, {bool isLabel = false}) =>
+          pw.Container(
+            color: isLabel ? headerBg : PdfColors.white,
+            padding: const pw.EdgeInsets.all(3),
+            child: txt(text, isLabel ? smallBold : base,
+                align: pw.TextAlign.center),
+          );
 
-  <div class="table-title">جدول الأعمال الشهرية</div>
-  <div class="table-sub">المتحقق من الأعمال لشهر ($monthName) للعام الدراسي ($acadStart - $acadEnd)</div>
+      // Build visits table rows
+      // Children are reversed (leftmost in list = rightmost on page) because
+      // pw.Table renders LTR regardless of MultiPage textDirection.
+      final visitRows = <pw.TableRow>[
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: headerBg),
+          children: [
+            cell('الملاحظات',      header: true),
+            cell('تفاصيل الزيارة', header: true),
+            cell('اسم المدرسة',    header: true),
+            cell('التاريخ',        header: true),
+            cell('اليوم',          header: true),
+            cell('ت',              header: true),
+          ],
+        ),
+        ...List.generate(allMonthVisits.length, (i) {
+          final visit = allMonthVisits[i];
+          final dayName = arabicDays[visit.date.weekday - 1];
+          final dateStr = _isoDate(visit.date);
+          final details = visit.visitDetails?.trim() ?? '';
+          final notes   = visit.notes?.trim() ?? '';
+          final bg = i.isEven ? PdfColors.white : evenRowBg;
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: bg),
+            children: [
+              cell(notes,            align: pw.TextAlign.right),
+              cell(details,          align: pw.TextAlign.right),
+              cell(visit.schoolName, align: pw.TextAlign.right),
+              cell(dateStr),
+              cell(dayName),
+              cell('${i + 1}'),
+            ],
+          );
+        }),
+      ];
 
-  <div class="supervisor-row">
-    <div>المشرف الاختصاصي: $supervisorName</div>
-    <div>الاختصاص: $specialty</div>
-  </div>
+      final pdf = pw.Document();
 
-  <!-- Stats bar -->
-  <table class="stats-table">
-    <tr>
-      <td class="stats-label">عدد مدارس الاختصاص التي بعهدته</td>
-      <td class="stats-value">$specialtySchools</td>
-      <td class="stats-label">عدد مدارس الصديق الناقد</td>
-      <td class="stats-value">$criticalFriendSchools</td>
-      <td class="stats-label">عدد مدارس التقييم الخارجي</td>
-      <td class="stats-value">$externalEvalSchools</td>
-      <td class="stats-label">عدد الزيارات المتحققة شهريا</td>
-      <td class="stats-value">$monthlyActual</td>
-      <td class="stats-label">عدد الزيارات التراكمية</td>
-      <td class="stats-value">$cumulativeActual</td>
-    </tr>
-  </table>
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          margin: const pw.EdgeInsets.all(0.9 * PdfPageFormat.cm),
+          textDirection: pw.TextDirection.rtl,
+          build: (context) => [
+            // ── Top header ──
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        txt('المديرية العامة لتربية محافظة بابل', sub),
+                        txt('قسم الإشراف الاختصاصي', sub),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Center(
+                    child: txt('جدول رقم (1)', bigBold,
+                        align: pw.TextAlign.center),
+                  ),
+                ),
+                pw.Expanded(child: pw.SizedBox()),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+            pw.Center(
+                child: txt('جدول الأعمال الشهرية', title,
+                    align: pw.TextAlign.center)),
+            pw.SizedBox(height: 2),
+            pw.Center(
+                child: txt(
+                    'المتحقق من الأعمال لشهر ($monthName) للعام الدراسي ($acadStart - $acadEnd)',
+                    sub,
+                    align: pw.TextAlign.center)),
+            pw.SizedBox(height: 5),
 
-  <!-- Visits table -->
-  <table class="visits-table">
-    <thead>
-      <tr>
-        <th class="col-num">ت</th>
-        <th class="col-day">اليوم</th>
-        <th class="col-date">التاريخ</th>
-        <th class="col-school">اسم المدرسة</th>
-        <th class="col-detail">تفاصيل الزيارة</th>
-        <th class="col-notes">الملاحظات</th>
-      </tr>
-    </thead>
-    <tbody>
-''');
+            // ── Supervisor row ──
+            pw.Row(
+              children: [
+                txt('المشرف الاختصاصي: $supervisorName', bold),
+                pw.SizedBox(width: 40),
+                txt('الاختصاص: $specialty', bold),
+              ],
+            ),
+            pw.SizedBox(height: 5),
 
-      for (int i = 0; i < allMonthVisits.length; i++) {
-        final visit = allMonthVisits[i];
-        final dayName = arabicDays[visit.date.weekday - 1];
-        final dateStr = _isoDate(visit.date);
-        final details = (visit.visitDetails?.trim().isEmpty ?? true) ? '' : visit.visitDetails!.trim();
-        final notes = (visit.notes?.trim().isEmpty ?? true) ? '' : visit.notes!.trim();
+            // ── Stats table (reversed for RTL rendering) ──
+            pw.Table(
+              border: pw.TableBorder.all(width: 0.5),
+              children: [
+                pw.TableRow(children: [
+                  statsCell('$cumulativeActual'),
+                  statsCell('عدد الزيارات التراكمية', isLabel: true),
+                  statsCell('$monthlyActual'),
+                  statsCell('عدد الزيارات المتحققة شهريا', isLabel: true),
+                  statsCell('$externalEvalSchools'),
+                  statsCell('عدد مدارس التقييم الخارجي', isLabel: true),
+                  statsCell('$criticalFriendSchools'),
+                  statsCell('عدد مدارس الصديق الناقد', isLabel: true),
+                  statsCell('$specialtySchools'),
+                  statsCell('عدد مدارس الاختصاص التي بعهدته', isLabel: true),
+                ]),
+              ],
+            ),
+            pw.SizedBox(height: 6),
 
-        html.write('''      <tr>
-        <td class="col-num">${i + 1}</td>
-        <td class="col-day">$dayName</td>
-        <td class="col-date">$dateStr</td>
-        <td class="col-school">${visit.schoolName}</td>
-        <td class="col-detail">$details</td>
-        <td class="col-notes">$notes</td>
-      </tr>
-''');
-      }
+            // ── Visits table ──
+            pw.Table(
+              border: pw.TableBorder.all(width: 0.5),
+              columnWidths: const {
+                0: pw.FixedColumnWidth(145), // الملاحظات     (leftmost in LTR = rightmost visual RTL)
+                1: pw.FixedColumnWidth(130), // تفاصيل الزيارة
+                2: pw.FlexColumnWidth(),     // اسم المدرسة
+                3: pw.FixedColumnWidth(75),  // التاريخ
+                4: pw.FixedColumnWidth(60),  // اليوم
+                5: pw.FixedColumnWidth(25),  // ت              (rightmost in LTR = leftmost visual RTL)
+              },
+              children: visitRows,
+            ),
+            pw.SizedBox(height: 16),
 
-      html.write('''    </tbody>
-  </table>
+            // ── Footer ──
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    txt('اسم المشرف: $supervisorName', base),
+                    txt('التاريخ: $exportDate', base),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    txt('مدير قسم الإشراف: $headName', base),
+                    txt('التاريخ: $exportDate', base),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
 
-  <!-- Footer -->
-  <div class="footer">
-    <div class="footer-block" style="text-align:right;">
-      <div>اسم المشرف: $supervisorName</div>
-      <div>التاريخ: $exportDate</div>
-    </div>
-    <div class="footer-block">
-      <div>مدير قسم الإشراف: $headName</div>
-      <div>التاريخ: $exportDate</div>
-    </div>
-  </div>
-
-</div>
-</body>
-</html>
-''');
-
-      // Save file
+      // ── Save to Downloads ──
       Directory? directory = await getExternalStorageDirectory();
       if (directory != null) {
         final downloadsPath = directory.path
@@ -282,9 +283,10 @@ class ExportService {
       directory ??= await getApplicationDocumentsDirectory();
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'جدول_الاعمال_الشهرية_${arabicMonths[forMonth.month - 1]}_${forMonth.year}_$timestamp.html';
+      final fileName =
+          'جدول_الاعمال_الشهرية_${arabicMonths[forMonth.month - 1]}_${forMonth.year}_$timestamp.pdf';
       final file = File('${directory.path}/$fileName');
-      await file.writeAsString(html.toString(), encoding: utf8);
+      await file.writeAsBytes(await pdf.save());
       return file.path;
     } catch (e) {
       throw Exception('خطأ في تصدير البيانات: $e');
