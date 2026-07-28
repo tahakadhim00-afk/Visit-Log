@@ -13,6 +13,11 @@ class NotificationService {
   static const _channelName = 'تذكير الزيارات';
   static const _channelDesc = 'تذكير يومي بتسجيل الزيارات';
 
+  /// Shared by the local schedule and by pushes rendered in the foreground so
+  /// the reminder reads identically however it arrives.
+  static const reminderTitle = 'سجل زياراتك';
+  static const reminderBody = 'مساء الخير، لاتنسى ان تضيف زيارتك لهذا اليوم';
+
   static const List<int> _activeDays = [
     DateTime.monday,
     DateTime.tuesday,
@@ -52,17 +57,17 @@ class NotificationService {
 
   static Future<void> scheduleWeeklyNotifications() async {
     if (!_initialized) return;
-    await _plugin.cancelAll();
+    try {
+      await _plugin.cancelAll();
+    } catch (_) {}
 
     if (!SettingsService.notificationsEnabled) return;
 
-    final name = SettingsService.supervisorName;
-    final nameStr = name.isNotEmpty ? name : 'المشرف';
-    final body = 'مساء الخير $nameStr، تفضل وسجّل زياراتك لهذا اليوم.';
-    const title = 'سجل زياراتك';
+    const body = reminderBody;
+    const title = reminderTitle;
 
     for (final day in _activeDays) {
-      final details = NotificationDetails(
+      const details = NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
           _channelName,
@@ -74,18 +79,59 @@ class NotificationService {
       );
 
       final scheduled = _nextOccurrence(day, 12, 0);
-      await _plugin.zonedSchedule(
-        day,
-        title,
-        body,
-        scheduled,
-        details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+      try {
+        await _plugin.zonedSchedule(
+          day,
+          title,
+          body,
+          scheduled,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (_) {
+        // Exact alarms require user permission on Android 12+.
+        // Fall back to inexact scheduling so the app doesn't crash.
+        try {
+          await _plugin.zonedSchedule(
+            day,
+            title,
+            body,
+            scheduled,
+            details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+        } catch (_) {}
+      }
     }
+  }
+
+  /// Displays a notification immediately — used for pushes that arrive while
+  /// the app is foregrounded, which Android does not render on its own.
+  static Future<void> showNow({
+    required String title,
+    required String body,
+  }) async {
+    if (!_initialized) return;
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        styleInformation: BigTextStyleInformation(body),
+      ),
+    );
+    try {
+      // Distinct from the 1-7 weekday ids used by the weekly schedule.
+      await _plugin.show(1000, title, body, details);
+    } catch (_) {}
   }
 
   static tz.TZDateTime _nextOccurrence(int weekday, int hour, int minute) {

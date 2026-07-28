@@ -26,24 +26,12 @@ class BackupService {
         };
       }).toList();
 
-      // Encode profile photo as base64 so it survives device transfers
-      String? profilePhotoBase64;
-      final photoPath = SettingsService.profilePhotoPath;
-      if (photoPath != null) {
-        final photoFile = File(photoPath);
-        if (await photoFile.exists()) {
-          final bytes = await photoFile.readAsBytes();
-          profilePhotoBase64 = base64Encode(bytes);
-        }
-      }
-
       final Map<String, dynamic> backupData = {
         'version': '2.0',
         'exportDate': DateTime.now().toIso8601String(),
         'totalVisits': allVisits.length,
         'visits': visitsJson,
         'settings': SettingsService.toMap(),
-        if (profilePhotoBase64 != null) 'profilePhoto': profilePhotoBase64,
       };
 
       final String jsonString =
@@ -98,13 +86,14 @@ class BackupService {
         throw Exception('تنسيق ملف النسخة الاحتياطية غير صحيح');
       }
 
-      // ── Restore visits ────────────────────────────────────────────────────
-      await _clearAllVisits();
-      int imported = 0;
+      // ── Parse and validate BEFORE touching stored data ───────────────────
+      // Everything is materialised up front so a malformed file can never
+      // leave the user with a wiped box and nothing to restore.
+      final List<Visit> parsed = <Visit>[];
       for (final dynamic raw in backup['visits'] as List<dynamic>) {
         try {
           final Map<String, dynamic> v = raw as Map<String, dynamic>;
-          await HiveService.addVisit(Visit(
+          parsed.add(Visit(
             id: v['id'] as String,
             date: DateTime.parse(v['date'] as String),
             schoolName: v['schoolName'] as String,
@@ -115,15 +104,20 @@ class BackupService {
                 : null,
             visitDetails: v['visitDetails'] as String?,
           ));
-          imported++;
         } catch (_) {
           continue;
         }
       }
 
-      if (imported == 0) {
+      if (parsed.isEmpty) {
         throw Exception(
             'لم يتم العثور على زيارات صحيحة في ملف النسخة الاحتياطية');
+      }
+
+      // ── Restore visits (only now is it safe to clear) ────────────────────
+      await _clearAllVisits();
+      for (final Visit v in parsed) {
+        await HiveService.addVisit(v);
       }
 
       // ── Restore settings ─────────────────────────────────────────────────
@@ -132,14 +126,8 @@ class BackupService {
             backup['settings'] as Map<String, dynamic>);
       }
 
-      // ── Restore profile photo ────────────────────────────────────────────
-      if (backup['profilePhoto'] is String) {
-        final bytes = base64Decode(backup['profilePhoto'] as String);
-        final appDir = await getApplicationDocumentsDirectory();
-        final destPath = '${appDir.path}/supervisor_profile.jpg';
-        await File(destPath).writeAsBytes(bytes);
-        await SettingsService.setProfilePhotoPath(destPath);
-      }
+      // Older backups may carry a 'profilePhoto' key; it is ignored now that
+      // the supervisor profile has been removed.
 
       return true;
     } catch (e) {
@@ -148,6 +136,10 @@ class BackupService {
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
+
+  /// Best-effort Downloads directory, falling back to app storage.
+  /// Shared with [ExportService] so the path logic exists in one place.
+  static Future<Directory> resolveDownloadsDir() => _resolveDownloadsDir();
 
   static Future<Directory> _resolveDownloadsDir() async {
     if (Platform.isAndroid) {

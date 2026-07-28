@@ -113,7 +113,7 @@ class _EditVisitPageState extends State<EditVisitPage> {
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('تعديل الزيارة'),
+          title: const Text('تعديل الزيـــارة'),
           backgroundColor: Colors.black,
           elevation: 0,
         ),

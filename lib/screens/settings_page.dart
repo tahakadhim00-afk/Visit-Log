@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
+import '../services/push_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -17,76 +18,33 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('الإعدادات'),
+          title: const Text('الإعـــدادات'),
           backgroundColor: Colors.black,
           elevation: 0,
         ),
-        body: Stack(
-          children: [
-            Positioned(
-              top: -80, right: -80,
-              child: _colorBlob(size: 300, color: Colors.teal.withValues(alpha: isDark ? 0.15 : 0.12), blur: 90),
-            ),
-            Positioned(
-              top: -60, left: -60,
-              child: _colorBlob(size: 260, color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05), blur: 85),
-            ),
-            Positioned(
-              top: 280, right: -70,
-              child: _colorBlob(size: 280, color: Colors.teal.withValues(alpha: isDark ? 0.10 : 0.09), blur: 90),
-            ),
-            Positioned(
-              top: 320, left: -70,
-              child: _colorBlob(size: 260, color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04), blur: 85),
-            ),
-            Positioned(
-              bottom: -80, right: -60,
-              child: _colorBlob(size: 300, color: Colors.teal.withValues(alpha: isDark ? 0.12 : 0.10), blur: 90),
-            ),
-            Positioned(
-              bottom: -60, left: -60,
-              child: _colorBlob(size: 260, color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05), blur: 85),
-            ),
-            SingleChildScrollView(
-              padding: EdgeInsets.only(
-                left: 16, right: 16, bottom: 16,
-                top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle('الإشعارات'),
-                  const SizedBox(height: 16),
-                  _buildNotificationCard(),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('نسخ احتياطي'),
-                  const SizedBox(height: 16),
-                  _buildBackupCard(),
-                  const SizedBox(height: 24),
-                  if (_isLoading) const Center(child: CircularProgressIndicator()),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _colorBlob({required double size, required Color color, required double blur}) {
-    return ImageFiltered(
-      imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
+        body: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, bottom: 16,
+            top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('الإشعارات'),
+              const SizedBox(height: 16),
+              _buildNotificationCard(),
+              const SizedBox(height: 24),
+              _buildSectionTitle('نسخ احتياطي'),
+              const SizedBox(height: 16),
+              _buildBackupCard(),
+              const SizedBox(height: 24),
+              if (_isLoading) const Center(child: CircularProgressIndicator()),
+            ],
+          ),
         ),
       ),
     );
@@ -104,27 +62,13 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _blurCard({required Widget child}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.white.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.7),
-              width: 1,
-            ),
-          ),
-          child: child,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
       ),
+      child: child,
     );
   }
 
@@ -176,8 +120,17 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
     await SettingsService.setNotificationsEnabled(value);
+    if (!mounted) return;
     setState(() => _notificationsEnabled = value);
+
+    // Keep the on-device schedule and the server-push topic in step, so
+    // turning reminders off silences both sources.
     await NotificationService.scheduleWeeklyNotifications();
+    if (value) {
+      await PushService.subscribeToReminders();
+    } else {
+      await PushService.unsubscribeFromReminders();
+    }
   }
 
   Widget _buildBackupCard() {

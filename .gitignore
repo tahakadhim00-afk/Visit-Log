@@ -44,6 +44,17 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# android/build.gradle.kts relocates Gradle's output dir to android/build/,
+# which the root-anchored /build/ rule above does not cover.
+/android/build/
+
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
+
+# Firebase's native per-platform config files. Redundant once
+# lib/firebase_options.dart (tracked) exists, and each platform Gradle/Xcode
+# setup regenerates equivalents from it, so these stay local-only.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist

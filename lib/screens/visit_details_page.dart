@@ -57,9 +57,9 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
       context,
       MaterialPageRoute(builder: (context) => EditVisitPage(visit: visit)),
     );
+    if (!mounted) return;
     if (result != null && result is Visit) {
-      _loadVisits();
-      setState(() {});
+      setState(_loadVisits);
     }
   }
 
@@ -68,9 +68,9 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
       context,
       MaterialPageRoute(builder: (context) => AddVisitPage(selectedDate: widget.date)),
     );
+    if (!mounted) return;
     if (result == true) {
-      _loadVisits();
-      setState(() {});
+      setState(_loadVisits);
     }
   }
 
@@ -112,36 +112,36 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
       ),
     );
 
-    if (shouldDelete == true) {
-      await HiveService.deleteVisit(visit.id);
-      _loadVisits();
-      setState(() {});
+    if (shouldDelete != true) return;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'تم حذف الزيارة بنجاح',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red[600]!,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
+    await HiveService.deleteVisit(visit.id);
+    if (!mounted) return;
+    setState(_loadVisits);
 
-        if (visits.isEmpty) {
-          Navigator.pop(context, 'deleted');
-        }
-      }
+    // Held before any pop so the confirmation survives on the parent route.
+    final messenger = ScaffoldMessenger.of(context);
+    if (visits.isEmpty) {
+      Navigator.pop(context, 'deleted');
     }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'تم حذف الزيارة بنجاح',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[600]!,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   @override
@@ -150,7 +150,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('زيارات ${_formatArabicDate(widget.date)}'),
+          title: Text('زيـــارات ${_formatArabicDate(widget.date)}'),
           backgroundColor: Colors.black,
           elevation: 0,
           actions: [
@@ -254,41 +254,24 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
   }
 
   Widget _blurCard({required Widget child}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.white.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.7),
-              width: 1,
-            ),
-          ),
-          child: child,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
       ),
+      child: child,
     );
   }
 
   Widget _buildVisitCard(Visit visit, int visitNumber) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return _blurCard(
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.grey[800]!.withValues(alpha: 0.4)
-                  : Colors.grey[100]!,
+              color: Colors.grey[800]!.withValues(alpha: 0.4),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
@@ -399,16 +382,14 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.teal[900]!.withValues(alpha: 0.4)
-                          : Colors.teal[50]!,
+                      color: Colors.teal[900]!.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       visit.visitDetails!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? Colors.teal[200]! : Colors.teal[700]!,
+                        color: Colors.teal[200]!,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.right,
@@ -440,16 +421,14 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.purple[900]!.withValues(alpha: 0.4)
-                          : Colors.purple[50]!,
+                      color: Colors.purple[900]!.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       visit.notes!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? Colors.purple[200]! : Colors.purple[700]!,
+                        color: Colors.purple[200]!,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.right,

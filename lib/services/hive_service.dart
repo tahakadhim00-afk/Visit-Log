@@ -64,6 +64,21 @@ class HiveService {
     }).toList();
   }
 
+  /// Groups a month's visits by day in a single pass.
+  ///
+  /// The calendar renders ~26 tiles at once; querying per tile turned one
+  /// month into O(tiles x box size) scans, so it reads the box once instead.
+  static Map<DateTime, List<Visit>> getVisitsByMonthGroupedByDay(
+      int year, int month) {
+    final grouped = <DateTime, List<Visit>>{};
+    for (final visit in visitBox.values) {
+      if (visit.date.year != year || visit.date.month != month) continue;
+      final day = DateTime(visit.date.year, visit.date.month, visit.date.day);
+      (grouped[day] ??= <Visit>[]).add(visit);
+    }
+    return grouped;
+  }
+
 
   static String generateVisitId(DateTime date) {
     return 'visit_${date.year}_${date.month}_${date.day}_${DateTime.now().millisecondsSinceEpoch}';

@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../models/visit.dart';
 import '../widgets/day_tile.dart';
 import '../services/export_service.dart';
-import '../services/settings_service.dart';
-import 'profile_page.dart';
+import '../services/hive_service.dart';
+import 'settings_page.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -26,34 +26,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
     'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت',
   ];
 
+  /// Non-Friday days of [displayMonth], and that month's visits keyed by day.
+  /// Both are recomputed only when the month changes or data is edited.
+  List<DateTime> _monthDays = const [];
+  Map<DateTime, List<Visit>> _visitsByDay = const {};
+
   @override
   void initState() {
     super.initState();
     displayMonth = DateTime(currentDate.year, currentDate.month, 1);
+    _loadMonth();
+  }
+
+  void _loadMonth() {
+    final lastDayOfMonth =
+        DateTime(displayMonth.year, displayMonth.month + 1, 0);
+
+    final days = <DateTime>[];
+    for (int day = 1; day <= lastDayOfMonth.day; day++) {
+      final date = DateTime(displayMonth.year, displayMonth.month, day);
+      if (date.weekday != DateTime.friday) {
+        days.add(date);
+      }
+    }
+
+    _monthDays = days;
+    _visitsByDay = HiveService.getVisitsByMonthGroupedByDay(
+        displayMonth.year, displayMonth.month);
   }
 
   void _showAppInfo() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (_) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
+      builder: (_) => Container(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.6)
-                  : Colors.white.withValues(alpha: 0.75),
+              color: const Color(0xFF1A1A1A),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.6),
-              ),
+              border: Border.all(color: const Color(0xFF2A2A2A)),
             ),
             child: Directionality(
               textDirection: ui.TextDirection.rtl,
@@ -121,36 +133,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 
-  Widget _buildProfileButton() {
-    final photoPath = SettingsService.profilePhotoPath;
-    final hasPhoto = photoPath != null && File(photoPath).existsSync();
-    return Padding(
-      padding: const EdgeInsets.only(left: 10),
-      child: GestureDetector(
-        onTap: () => Navigator.push(
+  Widget _buildSettingsButton() {
+    return IconButton(
+      icon: const Icon(Icons.settings_outlined, color: Colors.white),
+      onPressed: () async {
+        await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ProfilePage()),
-        ).then((_) => setState(() {})),
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.teal[300]!, width: 2),
-          ),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundColor: Colors.white24,
-            backgroundImage: hasPhoto ? FileImage(File(photoPath)) : null,
-            child: !hasPhoto
-                ? const Icon(Icons.person, color: Colors.white, size: 22)
-                : null,
-          ),
-        ),
-      ),
+          MaterialPageRoute(builder: (_) => const SettingsPage()),
+        );
+        // A backup import can replace every visit, so refresh on return.
+        if (!mounted) return;
+        setState(_loadMonth);
+      },
     );
   }
 
@@ -160,7 +157,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('سجل الزيارات'),
+          title: const Text('سجل الزيـــارات'),
           automaticallyImplyLeading: false,
           backgroundColor: Colors.black,
           elevation: 0,
@@ -168,62 +165,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
             icon: const Icon(Icons.info_outline, color: Colors.white),
             onPressed: _showAppInfo,
           ),
-          actions: [_buildProfileButton()],
+          actions: [_buildSettingsButton()],
         ),
         body: Builder(builder: (context) {
-          return Stack(
+          return Column(
             children: [
-              Positioned(
-                top: -80,
-                left: -80,
-                child: _colorBlob(size: 300, color: Colors.teal.withValues(alpha: 0.08), blur: 90),
-              ),
-              Positioned(
-                top: -60,
-                right: -60,
-                child: _colorBlob(size: 260, color: Colors.teal.withValues(alpha: 0.08), blur: 85),
-              ),
-              Positioned(
-                top: 280,
-                left: -70,
-                child: _colorBlob(size: 280, color: Colors.teal.withValues(alpha: 0.08), blur: 90),
-              ),
-              Positioned(
-                top: 320,
-                right: -70,
-                child: _colorBlob(size: 260, color: Colors.teal.withValues(alpha: 0.08), blur: 85),
-              ),
-              Positioned(
-                bottom: -80,
-                left: -60,
-                child: _colorBlob(size: 300, color: Colors.teal.withValues(alpha: 0.08), blur: 90),
-              ),
-              Positioned(
-                bottom: -60,
-                right: -60,
-                child: _colorBlob(size: 260, color: Colors.teal.withValues(alpha: 0.08), blur: 85),
-              ),
-              Column(
-                children: [
-                  _buildMonthNavigation(),
-                  Expanded(child: _buildCalendarGrid()),
-                  _buildExportSection(),
-                ],
-              ),
+              _buildMonthNavigation(),
+              Expanded(child: _buildCalendarGrid()),
+              _buildExportSection(),
             ],
           );
         }),
-      ),
-    );
-  }
-
-  Widget _colorBlob({required double size, required Color color, required double blur}) {
-    return ImageFiltered(
-      imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     );
   }
@@ -266,13 +218,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildNavButton({required IconData icon, required VoidCallback onPressed}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.teal[900]!.withValues(alpha: 0.4) : Colors.teal[50]!,
+        color: Colors.teal[900]!.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: isDark ? Colors.teal[700]! : Colors.teal[300]!,
+          color: Colors.teal[700]!,
           width: 1,
         ),
       ),
@@ -288,38 +239,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildCalendarGrid() {
-    final lastDayOfMonth = DateTime(displayMonth.year, displayMonth.month + 1, 0);
-
-    final monthDays = <DateTime>[];
-    for (int day = 1; day <= lastDayOfMonth.day; day++) {
-      final date = DateTime(displayMonth.year, displayMonth.month, day);
-      if (date.weekday != DateTime.friday) {
-        monthDays.add(date);
-      }
-    }
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: SingleChildScrollView(
+      // The grid scrolls itself; wrapping it in a SingleChildScrollView with
+      // shrinkWrap would build every tile up front and defeat viewport culling.
+      child: GridView.builder(
         physics: const BouncingScrollPhysics(),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: monthDays.length,
-          itemBuilder: (context, index) {
-            return DayTile(
-              date: monthDays[index],
-              isCurrentMonth: true,
-              onVisitChanged: _onVisitChanged,
-            );
-          },
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
         ),
+        itemCount: _monthDays.length,
+        itemBuilder: (context, index) {
+          final date = _monthDays[index];
+          return DayTile(
+            // Keyed by date so month changes rebind rather than reusing
+            // a previous day's State.
+            key: ValueKey(date),
+            date: date,
+            isCurrentMonth: true,
+            visits: _visitsByDay[date] ?? const [],
+            onVisitChanged: _onVisitChanged,
+          );
+        },
       ),
     );
   }
@@ -327,16 +271,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _goToPreviousMonth() {
     setState(() {
       displayMonth = DateTime(displayMonth.year, displayMonth.month - 1, 1);
+      _loadMonth();
     });
   }
 
   void _goToNextMonth() {
     setState(() {
       displayMonth = DateTime(displayMonth.year, displayMonth.month + 1, 1);
+      _loadMonth();
     });
   }
 
-  void _onVisitChanged() => setState(() {});
+  void _onVisitChanged() => setState(_loadMonth);
 
   Widget _buildExportSection() {
     return Container(
@@ -367,19 +313,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     required IconData icon,
     required VoidCallback onPressed,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onPressed,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: isDark ? Colors.teal[900]!.withValues(alpha: 0.4) : Colors.teal[50]!,
+          color: Colors.teal[900]!.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: isDark ? Colors.teal[700]! : Colors.teal[300]!,
-            width: 1,
-          ),
+          border: Border.all(color: Colors.teal[700]!, width: 1),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -405,8 +347,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     try {
       _showLoadingSnackBar('جاري تصدير تقرير ${arabicMonths[displayMonth.month - 1]}...');
       final filePath = await ExportService.exportMonthlyVisits(displayMonth);
+      if (!mounted) return;
       _showSuccessSnackBar('تم حفظ التقرير بنجاح في: $filePath');
     } catch (e) {
+      if (!mounted) return;
       _showErrorSnackBar('فشل في تصدير البيانات: ${e.toString()}');
     }
   }

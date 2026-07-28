@@ -35,23 +35,32 @@ class Visit extends HiveObject {
     this.visitDetails,
   });
 
+  /// Marks an argument as "not supplied" so that passing an explicit `null`
+  /// clears the field instead of being read as "leave unchanged".
+  static const Object _unset = Object();
+
   Visit copyWith({
     String? id,
     DateTime? date,
     String? schoolName,
-    String? notes,
-    String? photoPath,
-    DateTime? visitTime,
-    String? visitDetails,
+    Object? notes = _unset,
+    Object? photoPath = _unset,
+    Object? visitTime = _unset,
+    Object? visitDetails = _unset,
   }) {
     return Visit(
       id: id ?? this.id,
       date: date ?? this.date,
       schoolName: schoolName ?? this.schoolName,
-      notes: notes ?? this.notes,
-      photoPath: photoPath ?? this.photoPath,
-      visitTime: visitTime ?? this.visitTime,
-      visitDetails: visitDetails ?? this.visitDetails,
+      notes: identical(notes, _unset) ? this.notes : notes as String?,
+      photoPath:
+          identical(photoPath, _unset) ? this.photoPath : photoPath as String?,
+      visitTime: identical(visitTime, _unset)
+          ? this.visitTime
+          : visitTime as DateTime?,
+      visitDetails: identical(visitDetails, _unset)
+          ? this.visitDetails
+          : visitDetails as String?,
     );
   }
 

@@ -1,7 +1,5 @@
-﻿import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/visit.dart';
-import '../services/hive_service.dart';
 import '../screens/add_visit_page.dart';
 import '../screens/visit_details_page.dart';
 
@@ -10,11 +8,16 @@ class DayTile extends StatefulWidget {
   final bool isCurrentMonth;
   final VoidCallback onVisitChanged;
 
+  /// Supplied by the calendar, which loads the whole month in one pass so
+  /// each tile doesn't scan the box on its own.
+  final List<Visit> visits;
+
   const DayTile({
     super.key,
     required this.date,
     required this.isCurrentMonth,
     required this.onVisitChanged,
+    required this.visits,
   });
 
   @override
@@ -22,27 +25,11 @@ class DayTile extends StatefulWidget {
 }
 
 class _DayTileState extends State<DayTile> {
-  List<Visit> visits = [];
-  
-  final List<String> arabicDays = [
+  static const List<String> arabicDays = [
     'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadVisit();
-  }
-
-  @override
-  void didUpdateWidget(DayTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _loadVisit();
-  }
-
-  void _loadVisit() {
-    visits = HiveService.getVisitsByDate(widget.date);
-  }
+  List<Visit> get visits => widget.visits;
 
   @override
   Widget build(BuildContext context) {
@@ -52,11 +39,7 @@ class _DayTileState extends State<DayTile> {
     return GestureDetector(
       onTap: isFriday ? null : () => _onTileTap(context),
       onLongPress: visits.isNotEmpty ? () => _showQuickPreview(context) : null,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: AnimatedContainer(
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: _getBackgroundColor(isToday, isFriday),
@@ -64,11 +47,7 @@ class _DayTileState extends State<DayTile> {
           border: Border.all(
             color: isFriday
               ? Colors.red[300]!
-              : (isToday
-                  ? Colors.teal[700]!
-                  : (Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF2A2A2A)
-                      : Colors.grey[300]!)),
+              : (isToday ? Colors.teal[700]! : const Color(0xFF2A2A2A)),
             width: isToday ? 2 : 1,
           ),
           boxShadow: [
@@ -147,17 +126,13 @@ class _DayTileState extends State<DayTile> {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[700]!
-                                : Colors.grey[200]!,
+                            color: Colors.grey[700]!,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.add,
                             size: 20,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[400]!
-                                : Colors.grey[500]!,
+                            color: Color(0xFF9E9E9E),
                           ),
                         ),
                       ),
@@ -199,8 +174,6 @@ class _DayTileState extends State<DayTile> {
           ],
         ),
       ),
-        ),
-      ),
     );
   }
 
@@ -211,11 +184,10 @@ class _DayTileState extends State<DayTile> {
   }
 
   Color _getTextColor(bool isToday, bool isFriday) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (!widget.isCurrentMonth) return isDark ? Colors.grey[500]! : Colors.grey[400]!;
-    if (isFriday) return isDark ? Colors.red[300]! : Colors.red[600]!;
-    if (isToday) return isDark ? Colors.teal[300]! : Colors.teal[700]!;
-    return Theme.of(context).colorScheme.onSurface;
+    if (!widget.isCurrentMonth) return Colors.grey[500]!;
+    if (isFriday) return Colors.red[300]!;
+    if (isToday) return Colors.teal[300]!;
+    return Colors.white;
   }
 
   bool _isToday(DateTime date) {
@@ -230,7 +202,6 @@ class _DayTileState extends State<DayTile> {
   }
 
   void _showQuickPreview(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dayName = arabicDays[widget.date.weekday % 7];
     final dateLabel = '$dayName ${widget.date.day}/${widget.date.month}/${widget.date.year}';
 
@@ -243,7 +214,7 @@ class _DayTileState extends State<DayTile> {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 300),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -292,9 +263,9 @@ class _DayTileState extends State<DayTile> {
                   shrinkWrap: true,
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: visits.length,
-                  separatorBuilder: (_, __) => Divider(
+                  separatorBuilder: (_, __) => const Divider(
                     height: 1,
-                    color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[200],
+                    color: Color(0xFF2A2A2A),
                   ),
                   itemBuilder: (_, i) {
                     final v = visits[i];
@@ -327,10 +298,10 @@ class _DayTileState extends State<DayTile> {
                               children: [
                                 Text(
                                   v.schoolName,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white : Colors.black87,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 if (v.visitTime != null)
@@ -338,7 +309,7 @@ class _DayTileState extends State<DayTile> {
                                     '${v.visitTime!.hour.toString().padLeft(2, '0')}:${v.visitTime!.minute.toString().padLeft(2, '0')}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      color: Colors.grey[400],
                                     ),
                                   ),
                               ],
@@ -369,7 +340,7 @@ class _DayTileState extends State<DayTile> {
         ),
       );
       // Always reload after returning — visits may have been added, edited, or deleted
-      setState(() => _loadVisit());
+      if (!mounted) return;
       widget.onVisitChanged();
     } else {
       final result = await Navigator.push(
@@ -379,8 +350,8 @@ class _DayTileState extends State<DayTile> {
         ),
       );
 
+      if (!mounted) return;
       if (result == true) {
-        setState(() => _loadVisit());
         widget.onVisitChanged();
       }
     }

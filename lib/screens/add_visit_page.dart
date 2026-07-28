@@ -179,7 +179,7 @@ class _AddVisitPageState extends State<AddVisitPage> {
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('إضافة زيارة جديدة'),
+          title: const Text('إضافة زيـــارة جديدة'),
           backgroundColor: Colors.black,
           elevation: 0,
         ),
@@ -351,10 +351,10 @@ class _AddVisitPageState extends State<AddVisitPage> {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.save, size: 24),
+                      Icon(Icons.arrow_downward, size: 24),
                       SizedBox(width: 12),
                       Text(
-                        'حفظ الزيارة',
+                        'تسجيل الزيارة',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                       ),
                     ],

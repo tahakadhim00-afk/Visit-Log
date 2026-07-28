@@ -1,4 +1,4 @@
-package com.example.visit_log
+package com.tahakadhim.visitlog
 
 import io.flutter.embedding.android.FlutterActivity
 

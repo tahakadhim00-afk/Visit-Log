@@ -1,10 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
+import '../services/backup_service.dart';
 import '../services/hive_service.dart';
-import '../services/settings_service.dart';
 
 class ExportService {
   static const List<String> arabicMonths = [
@@ -25,21 +22,10 @@ class ExportService {
     return _holidayTypes.contains(visitDetails.trim());
   }
 
-  static Future<pw.Font> _loadCairoFont({required bool bold}) async {
-    final asset = bold
-        ? 'lib/assets/fonts/Cairo-Bold.ttf'
-        : 'lib/assets/fonts/Cairo-Regular.ttf';
-    final data = await rootBundle.load(asset);
-    return pw.Font.ttf(data);
-  }
-
   static String _twoDigit(int n) => n.toString().padLeft(2, '0');
 
   static String _isoDate(DateTime date) =>
       '${date.year}-${_twoDigit(date.month)}-${_twoDigit(date.day)}';
-
-  static String _footerDate(DateTime date) =>
-      '${_twoDigit(date.day)}/${_twoDigit(date.month)}/${date.year}';
 
   static (int, int) _academicYear(DateTime date) {
     if (date.month >= 9) {
@@ -48,6 +34,15 @@ class ExportService {
       return (date.year - 1, date.year);
     }
   }
+
+  /// Escapes text for safe embedding in HTML — every visit field is
+  /// free-form user input and must not be interpreted as markup.
+  static String _esc(String text) => text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
 
   static Future<String> exportMonthlyVisits(DateTime forMonth) async {
     try {
@@ -73,220 +68,138 @@ class ExportService {
               !_isHoliday(v.visitDetails))
           .length;
 
-      final supervisorName = SettingsService.supervisorName;
-      final specialty = SettingsService.specialty;
-      final headName = SettingsService.supervisionHeadName;
-      final specialtySchools = SettingsService.specialtySchoolsCount;
-      final criticalFriendSchools = SettingsService.criticalFriendSchoolsCount;
-      final externalEvalSchools = SettingsService.externalEvalSchoolsCount;
-
       final monthName = arabicMonths[forMonth.month - 1];
-      final exportDate = _footerDate(DateTime.now());
 
-      final font     = await _loadCairoFont(bold: false);
-      final fontBold = await _loadCairoFont(bold: true);
-
-      const headerBg = PdfColor(0.800, 0.878, 0.961); // #cce0f5
-      const evenRowBg = PdfColor(0.969, 0.984, 1.0);  // #f7fbff
-
-      final base     = pw.TextStyle(font: font,     fontSize: 10);
-      final bold     = pw.TextStyle(font: fontBold, fontSize: 10);
-      final bigBold  = pw.TextStyle(font: fontBold, fontSize: 17);
-      final title    = pw.TextStyle(font: fontBold, fontSize: 14);
-      final sub      = pw.TextStyle(font: font,     fontSize: 11);
-      final smallBold = pw.TextStyle(font: fontBold, fontSize: 9);
-
-      pw.Widget txt(String text, pw.TextStyle style,
-              {pw.TextAlign align = pw.TextAlign.right}) =>
-          pw.Text(text,
-              style: style,
-              textDirection: pw.TextDirection.rtl,
-              textAlign: align);
-
-      pw.Widget cell(String text,
-              {bool header = false,
-              PdfColor? bg,
-              pw.TextAlign align = pw.TextAlign.center}) =>
-          pw.Container(
-            color: bg,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-            child: txt(text, header ? bold : base, align: align),
-          );
-
-      pw.Widget statsCell(String text, {bool isLabel = false}) =>
-          pw.Container(
-            color: isLabel ? headerBg : PdfColors.white,
-            padding: const pw.EdgeInsets.all(3),
-            child: txt(text, isLabel ? smallBold : base,
-                align: pw.TextAlign.center),
-          );
-
-      // Build visits table rows
-      // Children are reversed (leftmost in list = rightmost on page) because
-      // pw.Table renders LTR regardless of MultiPage textDirection.
-      final visitRows = <pw.TableRow>[
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: headerBg),
-          children: [
-            cell('الملاحظات',      header: true),
-            cell('تفاصيل الزيارة', header: true),
-            cell('اسم المدرسة',    header: true),
-            cell('التاريخ',        header: true),
-            cell('اليوم',          header: true),
-            cell('ت',              header: true),
-          ],
-        ),
-        ...List.generate(allMonthVisits.length, (i) {
-          final visit = allMonthVisits[i];
-          final dayName = arabicDays[visit.date.weekday - 1];
-          final dateStr = _isoDate(visit.date);
-          final details = visit.visitDetails?.trim() ?? '';
-          final notes   = visit.notes?.trim() ?? '';
-          final bg = i.isEven ? PdfColors.white : evenRowBg;
-          return pw.TableRow(
-            decoration: pw.BoxDecoration(color: bg),
-            children: [
-              cell(notes,            align: pw.TextAlign.right),
-              cell(details,          align: pw.TextAlign.right),
-              cell(visit.schoolName, align: pw.TextAlign.right),
-              cell(dateStr),
-              cell(dayName),
-              cell('${i + 1}'),
-            ],
-          );
-        }),
-      ];
-
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4.landscape,
-          margin: const pw.EdgeInsets.all(0.9 * PdfPageFormat.cm),
-          textDirection: pw.TextDirection.rtl,
-          build: (context) => [
-            // ── Top header ──
-            pw.Row(
-              children: [
-                pw.Expanded(
-                  child: pw.Align(
-                    alignment: pw.Alignment.centerRight,
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        txt('المديرية العامة لتربية محافظة بابل', sub),
-                        txt('قسم الإشراف الاختصاصي', sub),
-                      ],
-                    ),
-                  ),
-                ),
-                pw.Expanded(
-                  child: pw.Center(
-                    child: txt('جدول رقم (1)', bigBold,
-                        align: pw.TextAlign.center),
-                  ),
-                ),
-                pw.Expanded(child: pw.SizedBox()),
-              ],
-            ),
-            pw.SizedBox(height: 4),
-            pw.Center(
-                child: txt('جدول الأعمال الشهرية', title,
-                    align: pw.TextAlign.center)),
-            pw.SizedBox(height: 2),
-            pw.Center(
-                child: txt(
-                    'المتحقق من الأعمال لشهر ($monthName) للعام الدراسي ($acadStart - $acadEnd)',
-                    sub,
-                    align: pw.TextAlign.center)),
-            pw.SizedBox(height: 5),
-
-            // ── Supervisor row ──
-            pw.Row(
-              children: [
-                txt('المشرف الاختصاصي: $supervisorName', bold),
-                pw.SizedBox(width: 40),
-                txt('الاختصاص: $specialty', bold),
-              ],
-            ),
-            pw.SizedBox(height: 5),
-
-            // ── Stats table (reversed for RTL rendering) ──
-            pw.Table(
-              border: pw.TableBorder.all(width: 0.5),
-              children: [
-                pw.TableRow(children: [
-                  statsCell('$cumulativeActual'),
-                  statsCell('عدد الزيارات التراكمية', isLabel: true),
-                  statsCell('$monthlyActual'),
-                  statsCell('عدد الزيارات المتحققة شهريا', isLabel: true),
-                  statsCell('$externalEvalSchools'),
-                  statsCell('عدد مدارس التقييم الخارجي', isLabel: true),
-                  statsCell('$criticalFriendSchools'),
-                  statsCell('عدد مدارس الصديق الناقد', isLabel: true),
-                  statsCell('$specialtySchools'),
-                  statsCell('عدد مدارس الاختصاص التي بعهدته', isLabel: true),
-                ]),
-              ],
-            ),
-            pw.SizedBox(height: 6),
-
-            // ── Visits table ──
-            pw.Table(
-              border: pw.TableBorder.all(width: 0.5),
-              columnWidths: const {
-                0: pw.FixedColumnWidth(145), // الملاحظات     (leftmost in LTR = rightmost visual RTL)
-                1: pw.FixedColumnWidth(130), // تفاصيل الزيارة
-                2: pw.FlexColumnWidth(),     // اسم المدرسة
-                3: pw.FixedColumnWidth(75),  // التاريخ
-                4: pw.FixedColumnWidth(60),  // اليوم
-                5: pw.FixedColumnWidth(25),  // ت              (rightmost in LTR = leftmost visual RTL)
-              },
-              children: visitRows,
-            ),
-            pw.SizedBox(height: 16),
-
-            // ── Footer ──
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    txt('اسم المشرف: $supervisorName', base),
-                    txt('التاريخ: $exportDate', base),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    txt('مدير قسم الإشراف: $headName', base),
-                    txt('التاريخ: $exportDate', base),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-
-      // ── Save to Downloads ──
-      Directory? directory = await getExternalStorageDirectory();
-      if (directory != null) {
-        final downloadsPath = directory.path
-            .replaceAll('/Android/data/com.example.visit_log/files', '/Download');
-        final downloadsDir = Directory(downloadsPath);
-        if (await downloadsDir.exists()) {
-          directory = downloadsDir;
-        }
+      final rows = StringBuffer();
+      for (int i = 0; i < allMonthVisits.length; i++) {
+        final visit = allMonthVisits[i];
+        final dayName = arabicDays[visit.date.weekday - 1];
+        final dateStr = _isoDate(visit.date);
+        final details = visit.visitDetails?.trim() ?? '';
+        final notes = visit.notes?.trim() ?? '';
+        rows.writeln('''
+        <tr>
+          <td>${i + 1}</td>
+          <td>${_esc(dayName)}</td>
+          <td>$dateStr</td>
+          <td class="right">${_esc(visit.schoolName)}</td>
+          <td class="right">${_esc(details)}</td>
+          <td class="right">${_esc(notes)}</td>
+        </tr>''');
       }
-      directory ??= await getApplicationDocumentsDirectory();
+
+      final html = '''
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>جدول الأعمال الشهرية - $monthName ${forMonth.year}</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+    margin: 0;
+    padding: 24px;
+    color: #111;
+    background: #fff;
+  }
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .top-row .side { flex: 1; font-size: 13px; }
+  .top-row .side.left { text-align: left; }
+  .top-row .center { flex: 1; text-align: center; font-size: 19px; font-weight: 700; }
+  h1 {
+    text-align: center;
+    font-size: 16px;
+    margin: 6px 0 2px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #333;
+    margin: 0 0 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  th, td {
+    border: 0.5px solid #666;
+    padding: 5px 6px;
+    font-size: 12px;
+    text-align: center;
+  }
+  td.right, th.right { text-align: right; }
+  thead th {
+    background: #cce0f5;
+    font-weight: 700;
+  }
+  tbody tr:nth-child(even) { background: #f7fbff; }
+  .stats-table td {
+    font-size: 11px;
+  }
+  .stats-table td.label {
+    background: #cce0f5;
+    font-weight: 700;
+  }
+  @media print {
+    @page { size: A4 landscape; margin: 0.9cm; }
+    body { padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <div class="top-row">
+    <div class="side right">
+      المديرية العامة لتربية محافظة بابل<br>
+      قسم الإشراف الاختصاصي
+    </div>
+    <div class="center">جدول رقم (1)</div>
+    <div class="side left"></div>
+  </div>
+
+  <h1>جدول الأعمال الشهرية</h1>
+  <p class="subtitle">المتحقق من الأعمال لشهر ($monthName) للعام الدراسي ($acadStart - $acadEnd)</p>
+
+  <table class="stats-table">
+    <tr>
+      <td class="label">عدد الزيارات المتحققة شهريا</td>
+      <td>$monthlyActual</td>
+      <td class="label">عدد الزيارات التراكمية</td>
+      <td>$cumulativeActual</td>
+    </tr>
+  </table>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ت</th>
+        <th>اليوم</th>
+        <th>التاريخ</th>
+        <th class="right">اسم المدرسة</th>
+        <th class="right">تفاصيل الزيارة</th>
+        <th class="right">الملاحظات</th>
+      </tr>
+    </thead>
+    <tbody>
+${rows.toString().trimRight()}
+    </tbody>
+  </table>
+</body>
+</html>
+''';
+
+      final directory = await BackupService.resolveDownloadsDir();
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName =
-          'جدول_الاعمال_الشهرية_${arabicMonths[forMonth.month - 1]}_${forMonth.year}_$timestamp.pdf';
+          'جدول_الاعمال_الشهرية_${arabicMonths[forMonth.month - 1]}_${forMonth.year}_$timestamp.html';
       final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(await pdf.save());
+      await file.writeAsString(html, encoding: utf8);
       return file.path;
     } catch (e) {
       throw Exception('خطأ في تصدير البيانات: $e');
