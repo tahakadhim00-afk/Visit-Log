@@ -202,7 +202,7 @@ ${rows.toString().trimRight()}
       await file.writeAsString(html, encoding: utf8);
       return file.path;
     } catch (e) {
-      throw Exception('خطأ في تصدير البيانات: $e');
+      throw BackupException('خطأ في تصدير التقرير: $e');
     }
   }
 }

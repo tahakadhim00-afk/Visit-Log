@@ -52,9 +52,3 @@ app.*.map.json
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
 
-# Firebase's native per-platform config files. Redundant once
-# lib/firebase_options.dart (tracked) exists, and each platform Gradle/Xcode
-# setup regenerates equivalents from it, so these stay local-only.
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
-macos/Runner/GoogleService-Info.plist

@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
-import '../services/push_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -123,14 +122,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     setState(() => _notificationsEnabled = value);
 
-    // Keep the on-device schedule and the server-push topic in step, so
-    // turning reminders off silences both sources.
+    // Re-schedules when enabling, and cancels everything when disabling.
     await NotificationService.scheduleWeeklyNotifications();
-    if (value) {
-      await PushService.subscribeToReminders();
-    } else {
-      await PushService.unsubscribeFromReminders();
-    }
   }
 
   Widget _buildBackupCard() {
@@ -197,7 +190,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        _showErrorDialog('خطأ في التصدير', 'فشل في تصدير البيانات: ${e.toString()}');
+        _showErrorDialog('خطأ في التصدير', '$e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -215,15 +208,24 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final result = await BackupService.importDataFromJson();
       if (mounted) {
-        if (result) {
-          _showSuccessDialog('تم الاستيراد بنجاح', 'تم استيراد البيانات بنجاح.');
-        } else {
+        if (result.cancelled) {
           _showErrorDialog('لم يتم الاستيراد', 'لم يتم اختيار ملف أو تم إلغاء العملية.');
+        } else if (result.hasLoss) {
+          // The old data is already replaced, so partial loss must be stated
+          // rather than reported as a clean success.
+          _showErrorDialog(
+            'تم الاستيراد مع تجاهل بعض الزيارات',
+            'تم استيراد ${result.imported} زيارة، '
+                'وتم تجاهل ${result.skipped} زيارة بسبب تلف بياناتها.',
+          );
+        } else {
+          _showSuccessDialog('تم الاستيراد بنجاح',
+              'تم استيراد ${result.imported} زيارة بنجاح.');
         }
       }
     } catch (e) {
       if (mounted) {
-        _showErrorDialog('خطأ في الاستيراد', 'فشل في استيراد البيانات: ${e.toString()}');
+        _showErrorDialog('خطأ في الاستيراد', '$e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

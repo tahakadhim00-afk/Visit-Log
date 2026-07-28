@@ -6,6 +6,34 @@ import '../models/visit.dart';
 import 'hive_service.dart';
 import 'settings_service.dart';
 
+/// Outcome of an import, so callers can tell a clean restore from one that
+/// silently dropped rows — the file has already replaced stored data by then.
+class ImportResult {
+  const ImportResult({
+    required this.cancelled,
+    this.imported = 0,
+    this.skipped = 0,
+  });
+
+  const ImportResult.cancelled() : this(cancelled: true);
+
+  final bool cancelled;
+  final int imported;
+  final int skipped;
+
+  bool get hasLoss => skipped > 0;
+}
+
+/// Thrown for conditions the user can act on; the message is shown as-is,
+/// so it must not be wrapped again by callers.
+class BackupException implements Exception {
+  const BackupException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class BackupService {
 
   // ── EXPORT ────────────────────────────────────────────────────────────────
@@ -50,13 +78,13 @@ class BackupService {
 
       return filePath;
     } catch (e) {
-      throw Exception('خطأ في تصدير البيانات: ${e.toString()}');
+      throw BackupException('خطأ في تصدير البيانات: $e');
     }
   }
 
   // ── IMPORT ────────────────────────────────────────────────────────────────
 
-  static Future<bool> importDataFromJson() async {
+  static Future<ImportResult> importDataFromJson() async {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         dialogTitle: 'اختر ملف النسخة الاحتياطية',
@@ -65,7 +93,9 @@ class BackupService {
         allowMultiple: false,
       );
 
-      if (result == null || result.files.isEmpty) return false;
+      if (result == null || result.files.isEmpty) {
+        return const ImportResult.cancelled();
+      }
 
       final PlatformFile picked = result.files.first;
       final String jsonString;
@@ -74,22 +104,37 @@ class BackupService {
         jsonString = utf8.decode(picked.bytes!);
       } else if (picked.path != null) {
         final File f = File(picked.path!);
-        if (!await f.exists()) throw Exception('الملف المحدد غير موجود');
+        if (!await f.exists()) {
+          throw const BackupException('الملف المحدد غير موجود');
+        }
         jsonString = await f.readAsString(encoding: utf8);
       } else {
-        throw Exception('لا يمكن قراءة الملف المحدد');
+        throw const BackupException('لا يمكن قراءة الملف المحدد');
       }
 
-      final Map<String, dynamic> backup = json.decode(jsonString);
+      // Decoded as dynamic first: a valid-but-wrong-shaped file (e.g. a JSON
+      // array) would otherwise surface as a raw Dart TypeError.
+      final dynamic decoded;
+      try {
+        decoded = json.decode(jsonString);
+      } catch (_) {
+        throw const BackupException('الملف ليس بصيغة JSON صالحة');
+      }
 
-      if (!backup.containsKey('visits') || !backup.containsKey('version')) {
-        throw Exception('تنسيق ملف النسخة الاحتياطية غير صحيح');
+      if (decoded is! Map<String, dynamic>) {
+        throw const BackupException('تنسيق ملف النسخة الاحتياطية غير صحيح');
+      }
+      final Map<String, dynamic> backup = decoded;
+
+      if (backup['visits'] is! List || !backup.containsKey('version')) {
+        throw const BackupException('تنسيق ملف النسخة الاحتياطية غير صحيح');
       }
 
       // ── Parse and validate BEFORE touching stored data ───────────────────
       // Everything is materialised up front so a malformed file can never
       // leave the user with a wiped box and nothing to restore.
       final List<Visit> parsed = <Visit>[];
+      int skipped = 0;
       for (final dynamic raw in backup['visits'] as List<dynamic>) {
         try {
           final Map<String, dynamic> v = raw as Map<String, dynamic>;
@@ -105,12 +150,12 @@ class BackupService {
             visitDetails: v['visitDetails'] as String?,
           ));
         } catch (_) {
-          continue;
+          skipped++;
         }
       }
 
       if (parsed.isEmpty) {
-        throw Exception(
+        throw const BackupException(
             'لم يتم العثور على زيارات صحيحة في ملف النسخة الاحتياطية');
       }
 
@@ -129,9 +174,15 @@ class BackupService {
       // Older backups may carry a 'profilePhoto' key; it is ignored now that
       // the supervisor profile has been removed.
 
-      return true;
+      return ImportResult(
+        cancelled: false,
+        imported: parsed.length,
+        skipped: skipped,
+      );
+    } on BackupException {
+      rethrow;
     } catch (e) {
-      throw Exception('خطأ في استيراد البيانات: ${e.toString()}');
+      throw BackupException('خطأ في استيراد البيانات: $e');
     }
   }
 
@@ -144,11 +195,14 @@ class BackupService {
   static Future<Directory> _resolveDownloadsDir() async {
     if (Platform.isAndroid) {
       try {
+        // The public Downloads dir still reports exists() == true under scoped
+        // storage (API 29+) while rejecting writes, so probe it for real
+        // instead of trusting existence and failing at save time.
+        final Directory shared = Directory('/storage/emulated/0/Download');
+        if (await shared.exists() && await _isWritable(shared)) return shared;
+
         final Directory? ext = await getExternalStorageDirectory();
         if (ext != null) {
-          const String dl = '/storage/emulated/0/Download';
-          final Directory dlDir = Directory(dl);
-          if (await dlDir.exists()) return dlDir;
           final Directory fallback = Directory('${ext.path}/Download');
           if (!await fallback.exists()) {
             await fallback.create(recursive: true);
@@ -158,6 +212,20 @@ class BackupService {
       } catch (_) {}
     }
     return getApplicationDocumentsDirectory();
+  }
+
+  /// Probes with a real write, since directory permissions cannot be
+  /// interrogated directly on Android.
+  static Future<bool> _isWritable(Directory dir) async {
+    final probe = File(
+        '${dir.path}/.visit_log_probe_${DateTime.now().microsecondsSinceEpoch}');
+    try {
+      await probe.writeAsString('');
+      await probe.delete();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> _clearAllVisits() async {

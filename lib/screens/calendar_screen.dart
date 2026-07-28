@@ -351,7 +351,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _showSuccessSnackBar('تم حفظ التقرير بنجاح في: $filePath');
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar('فشل في تصدير البيانات: ${e.toString()}');
+      _showErrorSnackBar('$e');
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -59,7 +60,9 @@ class NotificationService {
     if (!_initialized) return;
     try {
       await _plugin.cancelAll();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('NotificationService: cancelAll failed: $e');
+    }
 
     if (!SettingsService.notificationsEnabled) return;
 
@@ -106,32 +109,12 @@ class NotificationService {
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
           );
-        } catch (_) {}
+        } catch (e) {
+          // Both modes failed: this weekday's reminder will not fire.
+          debugPrint('NotificationService: failed to schedule day $day: $e');
+        }
       }
     }
-  }
-
-  /// Displays a notification immediately — used for pushes that arrive while
-  /// the app is foregrounded, which Android does not render on its own.
-  static Future<void> showNow({
-    required String title,
-    required String body,
-  }) async {
-    if (!_initialized) return;
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDesc,
-        importance: Importance.high,
-        priority: Priority.high,
-        styleInformation: BigTextStyleInformation(body),
-      ),
-    );
-    try {
-      // Distinct from the 1-7 weekday ids used by the weekly schedule.
-      await _plugin.show(1000, title, body, details);
-    } catch (_) {}
   }
 
   static tz.TZDateTime _nextOccurrence(int weekday, int hour, int minute) {

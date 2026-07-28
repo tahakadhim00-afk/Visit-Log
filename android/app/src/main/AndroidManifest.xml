@@ -1,8 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Storage permissions for file picker -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!--
+      Storage: the file picker uses the system document UI and exports go to
+      app-specific storage, so no storage permission is required on Android 10+
+      (API 29) under scoped storage. WRITE_EXTERNAL_STORAGE is declared only for
+      older devices, where it is still enforced.
+      MANAGE_EXTERNAL_STORAGE ("All files access") was removed: Play rejects it
+      without a qualifying use case, and this app has none.
+    -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <!-- Notification permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />

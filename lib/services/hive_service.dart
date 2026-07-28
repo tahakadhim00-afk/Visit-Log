@@ -5,9 +5,15 @@ class HiveService {
   static const String _visitBoxName = 'visits';
   static Box<Visit>? _visitBox;
 
+  /// Safe to call more than once: a Flutter engine restart re-enters main(),
+  /// and re-registering an adapter for the same typeId throws.
   static Future<void> init() async {
+    if (_visitBox?.isOpen ?? false) return;
+
     await Hive.initFlutter();
-    Hive.registerAdapter(VisitAdapter());
+    if (!Hive.isAdapterRegistered(VisitAdapter().typeId)) {
+      Hive.registerAdapter(VisitAdapter());
+    }
     _visitBox = await Hive.openBox<Visit>(_visitBoxName);
     await Hive.openBox('settings');
   }
@@ -86,5 +92,6 @@ class HiveService {
 
   static Future<void> dispose() async {
     await _visitBox?.close();
+    _visitBox = null;
   }
 }
