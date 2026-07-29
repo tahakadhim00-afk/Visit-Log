@@ -64,7 +64,10 @@ void main() {
     expect(content, contains('&#39;quotes&#39;'));
     expect(content, isNot(contains('<tags>')));
     expect(content, contains('Normal School'));
-    expect(content, contains('@page { size: A4 landscape'));
+    expect(content, contains('@page { size: A4 portrait'));
+    // Two @page rules exist (top level and inside @media print) and must not
+    // disagree, or the sheet prints in the wrong orientation.
+    expect(content, isNot(contains('landscape')));
 
     await File(path).delete();
   });

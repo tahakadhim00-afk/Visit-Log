@@ -120,15 +120,15 @@ $fontFaceCss
   /* Declared at top level, not inside `@media print`: several engines ignore
      the `size` descriptor when it is nested, which is what silently produced
      portrait output. */
-  @page { size: A4 landscape; margin: 0.9cm; }
+  @page { size: A4 portrait; margin: 1cm 0.8cm; }
   * { box-sizing: border-box; }
   body {
     font-family: "ThmanyahSans", "Segoe UI", Tahoma, Arial, sans-serif;
-    /* Caps on-screen width at the A4-landscape print area so the preview in a
+    /* Caps on-screen width at the A4-portrait print area so the preview in a
        browser matches the printed sheet instead of stretching to the window. */
-    max-width: 27.7cm;
+    max-width: 19.4cm;
     margin: 0 auto;
-    padding: 24px;
+    padding: 16px;
     color: #111;
     background: #fff;
   }
@@ -137,19 +137,19 @@ $fontFaceCss
     justify-content: space-between;
     align-items: flex-start;
   }
-  .top-row .side { flex: 1; font-size: 13px; }
+  .top-row .side { flex: 1; font-size: 11.5px; }
   .top-row .side.left { text-align: left; }
-  .top-row .center { flex: 1; text-align: center; font-size: 19px; font-weight: 700; }
+  .top-row .center { flex: 1; text-align: center; font-size: 16px; font-weight: 700; }
   h1 {
     text-align: center;
-    font-size: 16px;
+    font-size: 14px;
     margin: 6px 0 2px;
   }
   .subtitle {
     text-align: center;
-    font-size: 12px;
+    font-size: 11px;
     color: #333;
-    margin: 0 0 14px;
+    margin: 0 0 12px;
   }
   table {
     width: 100%;
@@ -158,8 +158,10 @@ $fontFaceCss
   }
   th, td {
     border: 0.5px solid #666;
-    padding: 5px 6px;
-    font-size: 12px;
+    /* Tightened for portrait: the printable width drops from 27.7cm to
+       19.4cm, so cells give up padding before the text has to shrink. */
+    padding: 4px 4px;
+    font-size: 10.5px;
     text-align: center;
   }
   td.right, th.right { text-align: right; }
@@ -171,13 +173,14 @@ $fontFaceCss
   .id-row {
     display: flex;
     justify-content: flex-start;
-    gap: 90px;
-    font-size: 13px;
-    margin: 0 0 14px;
+    /* Proportional rather than a fixed 90px, which crowded the narrower page. */
+    gap: 8%;
+    font-size: 11.5px;
+    margin: 0 0 10px;
   }
-  .col-idx { width: 4%; }
-  .col-day { width: 9%; }
-  .col-date { width: 11%; }
+  .col-idx { width: 5%; }
+  .col-day { width: 11%; }
+  .col-date { width: 14%; }
   /* Keeps the narrow columns on one line so a long school name cannot force
      the day or date to wrap and stagger the row height. */
   .col-day, .col-date, tbody td:nth-child(2), tbody td:nth-child(3) {
@@ -187,9 +190,9 @@ $fontFaceCss
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    font-size: 13px;
-    line-height: 1.9;
-    margin-top: 30px;
+    font-size: 11.5px;
+    line-height: 1.8;
+    margin-top: 24px;
   }
   /* Both columns carry the same three lines so the name and date rows share a
      baseline across the page; the gap under التوقيع: leaves room to sign. */
@@ -207,7 +210,7 @@ $fontFaceCss
   }
   .footer-block .sig-line { margin-bottom: 26px; }
   @media print {
-    @page { size: A4 landscape; margin: 0.9cm; }
+    @page { size: A4 portrait; margin: 1cm 0.8cm; }
     body { padding: 0; }
     table { page-break-inside: auto; }
     tr { page-break-inside: avoid; }

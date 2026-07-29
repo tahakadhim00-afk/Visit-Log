@@ -49,9 +49,11 @@ class StorageFailureApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colors.black,
-      ),
+      // Shares the app theme so the failure screen is not the one place that
+      // renders in the system font.
+      theme: _appTheme,
+      darkTheme: _appTheme,
+      themeMode: ThemeMode.dark,
       home: Directionality(
         textDirection: ui.TextDirection.rtl,
         child: Scaffold(
@@ -119,7 +121,18 @@ class VisitLogApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       themeMode: ThemeMode.dark,
-      darkTheme: ThemeData.dark().copyWith(
+      // Both slots get the same theme. `themeMode` alone is not enough: with
+      // `theme:` unset Flutter falls back to a bare default ThemeData, which
+      // carries no fontFamily and renders the UI in the system font.
+      theme: _appTheme,
+      darkTheme: _appTheme,
+      home: const CalendarScreen(),
+    );
+  }
+}
+
+/// The app's single theme, used for both `theme:` and `darkTheme:`.
+ThemeData get _appTheme => ThemeData.dark().copyWith(
         // Bundled ThmanyahSans; see the fonts: section in pubspec.yaml.
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'ThmanyahSans'),
         primaryTextTheme:
@@ -167,8 +180,4 @@ class VisitLogApp extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
         ),
-      ),
-      home: const CalendarScreen(),
-    );
-  }
-}
+      );
