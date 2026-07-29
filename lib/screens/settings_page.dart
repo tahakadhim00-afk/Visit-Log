@@ -15,6 +15,21 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _notificationsEnabled = SettingsService.notificationsEnabled;
 
+  final _supervisorController =
+      TextEditingController(text: SettingsService.supervisorName);
+  final _specializationController =
+      TextEditingController(text: SettingsService.specialization);
+  final _headController =
+      TextEditingController(text: SettingsService.supervisionHeadName);
+
+  @override
+  void dispose() {
+    _supervisorController.dispose();
+    _specializationController.dispose();
+    _headController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -36,6 +51,10 @@ class _SettingsPageState extends State<SettingsPage> {
               _buildSectionTitle('الإشعارات'),
               const SizedBox(height: 16),
               _buildNotificationCard(),
+              const SizedBox(height: 24),
+              _buildSectionTitle('بيانات التقرير'),
+              const SizedBox(height: 16),
+              _buildReportInfoCard(),
               const SizedBox(height: 24),
               _buildSectionTitle('نسخ احتياطي'),
               const SizedBox(height: 16),
@@ -124,6 +143,58 @@ class _SettingsPageState extends State<SettingsPage> {
 
     // Re-schedules when enabling, and cancels everything when disabling.
     await NotificationService.scheduleWeeklyNotifications();
+  }
+
+  Widget _buildReportInfoCard() {
+    return _blurCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'تظهر هذه البيانات في ترويسة وتذييل جدول الأعمال الشهرية المصدَّر.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            _buildReportField(
+              controller: _supervisorController,
+              label: 'المشرف الاختصاصي',
+              onChanged: SettingsService.setSupervisorName,
+            ),
+            const SizedBox(height: 12),
+            _buildReportField(
+              controller: _specializationController,
+              label: 'الاختصاص',
+              onChanged: SettingsService.setSpecialization,
+            ),
+            const SizedBox(height: 12),
+            _buildReportField(
+              controller: _headController,
+              label: 'مدير قسم الإشراف',
+              onChanged: SettingsService.setSupervisionHeadName,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportField({
+    required TextEditingController controller,
+    required String label,
+    required Future<void> Function(String) onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: (value) => onChanged(value),
+    );
   }
 
   Widget _buildBackupCard() {

@@ -49,6 +49,10 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - lib/assets/
+    # Also listed as assets (not just under `fonts:`) so the HTML exporter can
+    # read the bytes via rootBundle and inline them as base64 @font-face.
+    - assets/fonts/thmanyahsans-Regular.otf
+    - assets/fonts/thmanyahsans-Bold.otf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
