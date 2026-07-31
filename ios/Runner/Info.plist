@@ -4,8 +4,11 @@
 	<dict>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<!-- Matches android:label so the home-screen name is identical on both
+		     platforms. CFBundleName below stays ASCII: it is the short internal
+		     name and is capped at 15 characters. -->
 		<key>CFBundleDisplayName</key>
-		<string>Visit Log</string>
+		<string>سجل الزيارات</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -14,6 +17,11 @@
 		<string>6.0</string>
 		<key>CFBundleName</key>
 		<string>visit_log</string>
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>ar</string>
+			<string>en</string>
+		</array>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -47,5 +55,22 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!--
+		  iOS has no shared Downloads folder, so BackupService falls through to
+		  getApplicationDocumentsDirectory() on this platform. These two keys are
+		  what make that directory reachable: without them the JSON backups and
+		  HTML reports the app writes are invisible to the user and effectively
+		  unexportable, since the app has no share-sheet path to them.
+		-->
+		<key>UIFileSharingEnabled</key>
+		<true/>
+		<key>LSSupportsOpeningDocumentsInPlace</key>
+		<true/>
+		<!--
+		  file_picker presents the system document browser, which needs no usage
+		  description. Photo/camera keys are deliberately absent: the app stores a
+		  photoPath on a Visit but never opens a picker, and shipping unused
+		  usage strings draws App Review questions.
+		-->
 	</dict>
 </plist>

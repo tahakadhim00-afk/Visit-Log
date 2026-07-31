@@ -1,0 +1,111 @@
+workflows:
+  ios-unsigned:
+    name: iOS build (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.38.5
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter version
+        script: flutter --version
+
+      - name: Get packages
+        script: flutter pub get
+
+      # The iOS folder is committed without Podfile.lock or Pods/, so the very
+      # first CI run resolves the whole dependency graph from scratch.
+      - name: Install pods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Analyze
+        script: flutter analyze --no-fatal-infos
+        ignore_failure: true
+
+      - name: Run tests
+        script: flutter test
+        ignore_failure: true
+
+      # --no-codesign is what lets this run without any Apple Developer account.
+      # It produces Runner.app, not a .ipa — an .ipa must be signed to exist.
+      - name: Build unsigned iOS app
+        script: flutter build ios --release --no-codesign
+
+      # Packaged so the result is downloadable as a single artifact. This zip is
+      # NOT installable on a device; it exists to prove the build compiles and to
+      # be inspected. Installing requires the signed workflow below.
+      - name: Package Runner.app
+        script: |
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          zip -r -q ../ipa/Runner-unsigned.zip Runner.app
+    artifacts:
+      - build/ios/ipa/*.zip
+      - build/ios/iphoneos/Runner.app
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - tahakadhim00@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Signed release. This workflow CANNOT run until an Apple Developer Program
+  # membership exists. Before triggering it:
+  #   1. Register the bundle ID com.tahakadhim.visitlog in App Store Connect.
+  #   2. Create an App Store Connect API key (Users and Access > Integrations).
+  #   3. In Codemagic, add an "app_store_credentials" group holding
+  #      APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER,
+  #      APP_STORE_CONNECT_PRIVATE_KEY and CERTIFICATE_PRIVATE_KEY.
+  # Until then it will fail at the signing step, which is expected.
+  # ───────────────────────────────────────────────────────────────────────────
+  ios-release:
+    name: iOS release (signed, needs Apple account)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.38.5
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tahakadhim.visitlog
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+
+      - name: Install pods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Set up signing
+        script: xcode-project use-profiles
+
+      # build_number is read from App Store Connect so each upload increments,
+      # rather than colliding with the +2 already hardcoded in pubspec.yaml.
+      - name: Build ipa
+        script: |
+          BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_APPLE_ID" 2>/dev/null || echo "0")
+          flutter build ipa --release \
+            --build-number=$(($BUILD_NUMBER + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - tahakadhim00@gmail.com
+        notify:
+          success: true
+          failure: true
+      # Uncomment once the app record exists in App Store Connect.
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: true

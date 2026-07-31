@@ -31,7 +31,7 @@ class NotificationService {
   static bool _initialized = false;
 
   static Future<void> init() async {
-    if (!Platform.isAndroid) return;
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     try {
       tz.initializeTimeZones();
       try {
@@ -42,7 +42,18 @@ class NotificationService {
       }
 
       const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
-      const settings = InitializationSettings(android: androidInit);
+      // Permission is requested later by requestPermission(), not at init, so
+      // the system prompt appears when the user enables reminders rather than
+      // on first launch.
+      const darwinInit = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      const settings = InitializationSettings(
+        android: androidInit,
+        iOS: darwinInit,
+      );
       await _plugin.initialize(settings);
       _initialized = true;
     } catch (_) {
@@ -51,6 +62,16 @@ class NotificationService {
   }
 
   static Future<bool> requestPermission() async {
+    if (Platform.isIOS) {
+      final ios = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      return await ios?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
+    }
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     return await android?.requestNotificationsPermission() ?? false;
@@ -78,6 +99,11 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
           styleInformation: BigTextStyleInformation(body),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       );
 
