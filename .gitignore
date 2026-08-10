@@ -48,7 +48,43 @@ app.*.map.json
 # which the root-anchored /build/ rule above does not cover.
 /android/build/
 
+# Catch build output at any depth, and Gradle's caches.
+build/
+.gradle/
 
-#Ignore vscode AI rules
-.github\instructions\codacy.instructions.md
+# Android signing material - never commit these
+*.jks
+*.keystore
+key.properties
+android/key.properties
+
+# Apple signing material
+*.p12
+*.cer
+*.mobileprovision
+
+# Backend service config. The app is offline-only; if any of these reappear
+# they carry project ids and API keys that should not be published.
+google-services.json
+GoogleService-Info.plist
+lib/firebase_options.dart
+firebase.json
+.firebaserc
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+secrets.properties
+
+# Local agent and editor configuration: contains machine-specific absolute
+# paths, so it leaks the developer's username when committed.
+.claude/
+
+# Ignore vscode AI rules. Written with forward slashes, since git ignore
+# patterns do not accept backslashes as separators.
+.github/instructions/codacy.instructions.md
+
+# Local scratch assets that are not shipped with the app
+lib/assets/blob/
 

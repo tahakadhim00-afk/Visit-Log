@@ -199,7 +199,6 @@ CalendarScreen (Main)
 ## Developer Information
 - **Developer**: Taha Kadhim
 - **Email**: tahakadhim00@gmail.com
-- **WhatsApp**: [redacted]
 
 ## File Naming Convention
 - Arabic file names supported for export
