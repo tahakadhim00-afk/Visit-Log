@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../services/backup_service.dart';
+import '../services/export_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 
@@ -14,9 +15,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _notificationsEnabled = SettingsService.notificationsEnabled;
-
-  /// Locates the share button so the iPad share popover can point at it.
-  final GlobalKey _shareButtonKey = GlobalKey();
 
   final _supervisorController =
       TextEditingController(text: SettingsService.supervisorName);
@@ -59,13 +57,13 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 16),
               _buildReportInfoCard(),
               const SizedBox(height: 24),
-              _buildSectionTitle('المشاركة'),
-              const SizedBox(height: 16),
-              _buildShareCard(),
-              const SizedBox(height: 24),
               _buildSectionTitle('نسخ احتياطي'),
               const SizedBox(height: 16),
               _buildBackupCard(),
+              const SizedBox(height: 24),
+              _buildSectionTitle('حول التطبيق'),
+              const SizedBox(height: 16),
+              _buildAboutCard(),
               const SizedBox(height: 24),
               if (_isLoading) const Center(child: CircularProgressIndicator()),
             ],
@@ -243,86 +241,81 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildShareCard() {
-    return Container(
-      key: _shareButtonKey,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-          colors: [Color(0xFF00695C), Color(0xFF26A69A)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: _isLoading ? null : _shareData,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Row(
+  /// App identity and credits, previously a bottom sheet behind the ⓘ icon on
+  /// the calendar screen. It is reference material rather than an action, so it
+  /// sits at the end of Settings instead of occupying a corner of the main
+  /// screen.
+  Widget _buildAboutCard() {
+    return _blurCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          children: [
+            // The launcher icon itself, so the section identifies the app with
+            // the same mark on the home screen. Its background is transparent,
+            // so it needs no tile behind it.
+            Image.asset(
+              'lib/assets/newlogo.png',
+              width: 76,
+              height: 76,
+              // Source is 1080², far larger than it draws; capping the decode
+              // keeps ~4.5 MB of bitmap out of the image cache.
+              cacheWidth: 256,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'سجل زيارات المشرف',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'تطبيق متخصص للمشرفين التربويين لتسجيل ومتابعة\n'
+              'زياراتهم الميدانية للمدارس، وإدارة بياناتهم\n'
+              'الإشرافية بكل سهولة ويسر.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.7,
+                color:
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Divider(color: Colors.grey.withValues(alpha: 0.3)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.send_rounded, color: Colors.white, size: 26),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'مشاركة الزيارات',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'إرسال ملف JSON عبر واتساب أو تيليجرام أو أي تطبيق آخر',
-                        style: TextStyle(fontSize: 13, color: Colors.white70),
-                      ),
-                    ],
+                const Icon(Icons.code, color: Colors.teal, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'تم التطوير بواسطة  Taha Kadhim',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.8),
                   ),
                 ),
-                Icon(Icons.chevron_left, color: Colors.white70, size: 22),
               ],
             ),
-          ),
+            const SizedBox(height: 6),
+            Text(
+              'النسخة 2.0.0',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _shareData() async {
-    setState(() => _isLoading = true);
-    try {
-      final outcome = await BackupService.shareBackupJson(
-        // Anchors the popover on iPad/macOS, where an unanchored sheet throws.
-        sharePositionOrigin: _shareButtonOrigin(),
-      );
-      // Only a cancellation is worth mentioning, and only in passing: on
-      // success the receiving app is already on screen saying so.
-      if (mounted && outcome == ShareOutcome.dismissed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إلغاء المشاركة')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorDialog('خطأ في المشاركة', '$e');
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  /// Global rect of the share button, or null if it has not been laid out.
-  Rect? _shareButtonOrigin() {
-    final box = _shareButtonKey.currentContext?.findRenderObject();
-    if (box is! RenderBox || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
-  }
+  /// Arabic label for a month, reusing the names the exported report prints so
+  /// the import dialogs and the report never disagree on what a month is called.
+  String _monthLabel(DateTime month) =>
+      '${ExportService.arabicMonths[month.month - 1]} ${month.year}';
 
   Future<void> _exportData() async {
     setState(() => _isLoading = true);
@@ -341,29 +334,59 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _importData() async {
+    // The file is read before anything is confirmed, because only its contents
+    // reveal whether this touches one month or erases the whole box — and the
+    // user should be asked about the one that is actually going to happen.
+    setState(() => _isLoading = true);
+    final BackupPayload? payload;
+    try {
+      payload = await BackupService.readBackupFile();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog('خطأ في قراءة الملف', '$e');
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (payload == null) {
+      _showErrorDialog(
+          'لم يتم الاستيراد', 'لم يتم اختيار ملف أو تم إلغاء العملية.');
+      return;
+    }
+
     final confirmed = await _showConfirmationDialog(
-      'استيراد البيانات',
-      'هل تريد استيراد البيانات؟ سيتم استبدال البيانات الحالية.\n\nسيتم فتح متصفح الملفات لاختيار ملف النسخة الاحتياطية.',
+      'تأكيد الاستيراد',
+      payload.isMonthScoped
+          ? 'الملف يحتوي على ${payload.visits.length} زيارة لشهر '
+              '${_monthLabel(payload.month!)} فقط.\n\n'
+              'سيتم استبدال زيارات هذا الشهر، ولن تتأثر بقية الأشهر.'
+          : 'الملف نسخة احتياطية كاملة تحتوي على ${payload.visits.length} زيارة.\n\n'
+              'سيتم حذف جميع الزيارات الحالية واستبدالها بالكامل.',
     );
-    if (!confirmed) return;
+    if (!confirmed || !mounted) return;
 
     setState(() => _isLoading = true);
     try {
-      final result = await BackupService.importDataFromJson();
+      final result = await BackupService.applyBackup(payload);
       if (mounted) {
-        if (result.cancelled) {
-          _showErrorDialog('لم يتم الاستيراد', 'لم يتم اختيار ملف أو تم إلغاء العملية.');
-        } else if (result.hasLoss) {
+        final String scopeNote = result.month != null
+            ? ' لشهر ${_monthLabel(result.month!)}، ولم تتأثر بقية الأشهر.'
+            : ' بنجاح.';
+        if (result.hasLoss) {
           // The old data is already replaced, so partial loss must be stated
           // rather than reported as a clean success.
           _showErrorDialog(
             'تم الاستيراد مع تجاهل بعض الزيارات',
             'تم استيراد ${result.imported} زيارة، '
-                'وتم تجاهل ${result.skipped} زيارة بسبب تلف بياناتها.',
+                'وتم تجاهل ${result.skipped} زيارة بسبب تلف بياناتها '
+                'أو لأنها خارج الشهر المحدد.',
           );
         } else {
-          _showSuccessDialog('تم الاستيراد بنجاح',
-              'تم استيراد ${result.imported} زيارة بنجاح.');
+          _showSuccessDialog(
+              'تم الاستيراد بنجاح', 'تم استيراد ${result.imported} زيارة$scopeNote');
         }
       }
     } catch (e) {

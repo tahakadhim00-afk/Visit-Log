@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/visit.dart';
 import '../widgets/day_tile.dart';
+import '../services/backup_service.dart';
 import '../services/export_service.dart';
 import '../services/hive_service.dart';
 import 'settings_page.dart';
@@ -31,6 +32,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   List<DateTime> _monthDays = const [];
   Map<DateTime, List<Visit>> _visitsByDay = const {};
 
+  /// Locates the share button so the iPad share popover can point at it.
+  final GlobalKey _shareButtonKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -55,89 +59,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         displayMonth.year, displayMonth.month);
   }
 
-  void _showAppInfo() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (_) => Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              border: Border.all(color: const Color(0xFF2A2A2A)),
-            ),
-            child: Directionality(
-              textDirection: ui.TextDirection.rtl,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // The launcher icon itself, so the sheet identifies the app
-                  // with the same mark the user tapped to open it. Its
-                  // background is transparent, so it needs no tile behind it.
-                  Image.asset(
-                    'lib/assets/newlogo.png',
-                    width: 84,
-                    height: 84,
-                    // Source is 1080², far larger than it draws; capping the
-                    // decode keeps ~4.5 MB of bitmap out of the image cache.
-                    cacheWidth: 256,
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'سجل زيارات المشرف',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'تطبيق متخصص للمشرفين التربويين لتسجيل ومتابعة\n'
-                    'زياراتهم الميدانية للمدارس، وإدارة بياناتهم\n'
-                    'الإشرافية بكل سهولة ويسر.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.7,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Divider(color: Colors.grey.withValues(alpha: 0.3)),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.code, color: Colors.teal, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'تم التطوير بواسطة  Taha Kadhim',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'النسخة 2.0.0',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            ),
-          ),
-    );
-  }
 
   Widget _buildSettingsButton() {
     return IconButton(
@@ -154,6 +75,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  /// Sends whatever month the calendar is showing. The tooltip names that
+  /// month, since the icon alone cannot say which one is about to go out.
+  Widget _buildShareButton() {
+    return IconButton(
+      key: _shareButtonKey,
+      icon: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF00695C), Color(0xFF26A69A)],
+          ),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+      ),
+      tooltip: 'مشاركة ${arabicMonths[displayMonth.month - 1]}',
+      onPressed: _shareCurrentMonth,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -164,11 +107,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           automaticallyImplyLeading: false,
           backgroundColor: Colors.black,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: _showAppInfo,
-          ),
-          actions: [_buildSettingsButton()],
+          // Under RTL the leading slot is the right-hand corner and actions is
+          // the left one. The app-info sheet that used to sit on the right now
+          // lives at the end of Settings.
+          leading: _buildSettingsButton(),
+          actions: [_buildShareButton()],
         ),
         body: Builder(builder: (context) {
           return Column(
@@ -356,6 +299,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (!mounted) return;
       _showErrorSnackBar('$e');
     }
+  }
+
+  /// Sends the month currently on screen, so choosing what to send is just a
+  /// matter of navigating to it — no separate month picker needed.
+  Future<void> _shareCurrentMonth() async {
+    final monthName = arabicMonths[displayMonth.month - 1];
+    try {
+      final outcome = await BackupService.shareBackupJson(
+        month: displayMonth,
+        // Anchors the popover on iPad/macOS, where an unanchored sheet throws.
+        sharePositionOrigin: _shareButtonOrigin(),
+      );
+      if (!mounted) return;
+      // Success stays silent: the receiving app is already on screen saying so.
+      if (outcome == ShareOutcome.dismissed) {
+        _showErrorSnackBar('تم إلغاء مشاركة $monthName');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar('$e');
+    }
+  }
+
+  /// Global rect of the share button, or null if it has not been laid out.
+  Rect? _shareButtonOrigin() {
+    final box = _shareButtonKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   void _showLoadingSnackBar(String message) {

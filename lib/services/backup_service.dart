@@ -15,6 +15,7 @@ class ImportResult {
     required this.cancelled,
     this.imported = 0,
     this.skipped = 0,
+    this.month,
   });
 
   const ImportResult.cancelled() : this(cancelled: true);
@@ -23,7 +24,37 @@ class ImportResult {
   final int imported;
   final int skipped;
 
+  /// The single month the file covered, or null if it was a full backup.
+  /// Set means every other month was left untouched.
+  final DateTime? month;
+
   bool get hasLoss => skipped > 0;
+}
+
+/// A parsed, validated backup that has not been applied yet.
+///
+/// Reading is kept separate from applying so the confirmation can state what
+/// the file will actually do: a month file rewrites one month, a full backup
+/// erases everything. Asking the user to agree to "سيتم استبدال البيانات"
+/// before the file has even been opened cannot make that distinction.
+class BackupPayload {
+  const BackupPayload({
+    required this.visits,
+    required this.skipped,
+    required this.month,
+    required this.settings,
+  });
+
+  final List<Visit> visits;
+  final int skipped;
+
+  /// First day of the month this file covers, or null for a full backup.
+  final DateTime? month;
+
+  /// Only ever populated for a full backup; see [applyBackup].
+  final Map<String, dynamic>? settings;
+
+  bool get isMonthScoped => month != null;
 }
 
 /// How a share attempt ended, so the UI can tell "handed to an app" from
@@ -66,12 +97,19 @@ class BackupService {
   /// The payload is byte-for-byte what [exportDataToJson] writes, so a file
   /// received this way restores through "استيراد البيانات" unchanged.
   ///
+  /// Pass [month] to send only that month; omit it for a full backup. A month
+  /// file is marked as such in the JSON so importing it rewrites that month
+  /// alone instead of wiping the rest of the year.
+  ///
   /// [sharePositionOrigin] anchors the popover on iPad and macOS; it is
   /// ignored elsewhere.
   static Future<ShareOutcome> shareBackupJson({
+    DateTime? month,
     Rect? sharePositionOrigin,
   }) async {
-    final List<Visit> allVisits = HiveService.getAllVisits();
+    final List<Visit> allVisits = month == null
+        ? HiveService.getAllVisits()
+        : HiveService.getVisitsByMonth(month.year, month.month);
     if (allVisits.isEmpty) {
       throw const BackupException('لا توجد زيارات لمشاركتها');
     }
@@ -89,9 +127,11 @@ class BackupService {
       }
       await shareDir.create(recursive: true);
 
-      filePath = '${shareDir.path}/${_backupFileName()}';
-      await File(filePath)
-          .writeAsString(_buildBackupJson(allVisits), encoding: utf8);
+      filePath = '${shareDir.path}/${_backupFileName(month: month)}';
+      await File(filePath).writeAsString(
+        _buildBackupJson(allVisits, month: month),
+        encoding: utf8,
+      );
     } catch (e) {
       throw BackupException('خطأ في تجهيز ملف المشاركة: $e');
     }
@@ -125,7 +165,11 @@ class BackupService {
 
   // ── IMPORT ────────────────────────────────────────────────────────────────
 
-  static Future<ImportResult> importDataFromJson() async {
+  /// Picks a file and parses it without touching stored data.
+  ///
+  /// Returns null if the user cancelled. Throws [BackupException] for anything
+  /// the user can act on. Nothing is written until [applyBackup] is called.
+  static Future<BackupPayload?> readBackupFile() async {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         dialogTitle: 'اختر ملف النسخة الاحتياطية',
@@ -135,7 +179,7 @@ class BackupService {
       );
 
       if (result == null || result.files.isEmpty) {
-        return const ImportResult.cancelled();
+        return null;
       }
 
       final PlatformFile picked = result.files.first;
@@ -153,6 +197,19 @@ class BackupService {
         throw const BackupException('لا يمكن قراءة الملف المحدد');
       }
 
+      return parseBackupJson(jsonString);
+    } on BackupException {
+      rethrow;
+    } catch (e) {
+      throw BackupException('خطأ في قراءة ملف النسخة الاحتياطية: $e');
+    }
+  }
+
+  /// Turns backup JSON into a payload, validating everything before any of it
+  /// can reach storage. Split out from [readBackupFile] so the file format is
+  /// verifiable without going through the platform file picker.
+  static BackupPayload parseBackupJson(String jsonString) {
+    try {
       // Decoded as dynamic first: a valid-but-wrong-shaped file (e.g. a JSON
       // array) would otherwise surface as a raw Dart TypeError.
       final dynamic decoded;
@@ -171,6 +228,17 @@ class BackupService {
         throw const BackupException('تنسيق ملف النسخة الاحتياطية غير صحيح');
       }
 
+      // Every backup written before month sharing existed lacks this key, and
+      // absence is exactly the full-replace behaviour those files expect.
+      DateTime? month;
+      if (backup['scope'] == 'month') {
+        month = _parseMonthKey(backup['month']);
+        if (month == null) {
+          throw const BackupException(
+              'الملف محدد كشهر واحد لكن تاريخ الشهر فيه غير صالح');
+        }
+      }
+
       // ── Parse and validate BEFORE touching stored data ───────────────────
       // Everything is materialised up front so a malformed file can never
       // leave the user with a wiped box and nothing to restore.
@@ -179,7 +247,7 @@ class BackupService {
       for (final dynamic raw in backup['visits'] as List<dynamic>) {
         try {
           final Map<String, dynamic> v = raw as Map<String, dynamic>;
-          parsed.add(Visit(
+          final Visit visit = Visit(
             id: v['id'] as String,
             date: DateTime.parse(v['date'] as String),
             schoolName: v['schoolName'] as String,
@@ -189,7 +257,17 @@ class BackupService {
                 ? DateTime.parse(v['visitTime'] as String)
                 : null,
             visitDetails: v['visitDetails'] as String?,
-          ));
+          );
+          // A month file that carries rows from other months would silently
+          // widen its own blast radius, so those rows are refused rather than
+          // written outside the month the user agreed to.
+          if (month != null &&
+              (visit.date.year != month.year ||
+                  visit.date.month != month.month)) {
+            skipped++;
+            continue;
+          }
+          parsed.add(visit);
         } catch (_) {
           skipped++;
         }
@@ -200,28 +278,55 @@ class BackupService {
             'لم يتم العثور على زيارات صحيحة في ملف النسخة الاحتياطية');
       }
 
-      // ── Restore visits (only now is it safe to clear) ────────────────────
-      await _clearAllVisits();
-      for (final Visit v in parsed) {
-        await HiveService.addVisit(v);
-      }
-
-      // ── Restore settings ─────────────────────────────────────────────────
-      if (backup['settings'] is Map<String, dynamic>) {
-        await SettingsService.restoreFromMap(
-            backup['settings'] as Map<String, dynamic>);
-      }
-
       // Older backups may carry a 'profilePhoto' key; it is ignored now that
       // the supervisor profile has been removed.
 
-      return ImportResult(
-        cancelled: false,
-        imported: parsed.length,
+      return BackupPayload(
+        visits: parsed,
         skipped: skipped,
+        month: month,
+        // Only a full backup may carry settings forward; see [applyBackup].
+        settings: month == null && backup['settings'] is Map<String, dynamic>
+            ? backup['settings'] as Map<String, dynamic>
+            : null,
       );
     } on BackupException {
       rethrow;
+    } catch (e) {
+      throw BackupException('خطأ في تحليل ملف النسخة الاحتياطية: $e');
+    }
+  }
+
+  /// Writes a payload returned by [readBackupFile] into storage.
+  ///
+  /// A full backup replaces everything, as it always has. A month-scoped file
+  /// rewrites only its own month, so receiving one month never costs the user
+  /// the rest of their year.
+  static Future<ImportResult> applyBackup(BackupPayload payload) async {
+    try {
+      if (payload.isMonthScoped) {
+        await _clearMonth(payload.month!);
+      } else {
+        await _clearAllVisits();
+      }
+
+      for (final Visit v in payload.visits) {
+        await HiveService.addVisit(v);
+      }
+
+      // Settings ride along with full backups only: a month file can come from
+      // another supervisor, and their name must not land in the receiver's
+      // report header.
+      if (payload.settings != null) {
+        await SettingsService.restoreFromMap(payload.settings!);
+      }
+
+      return ImportResult(
+        cancelled: false,
+        imported: payload.visits.length,
+        skipped: payload.skipped,
+        month: payload.month,
+      );
     } catch (e) {
       throw BackupException('خطأ في استيراد البيانات: $e');
     }
@@ -231,8 +336,15 @@ class BackupService {
 
   /// The one place the backup payload is built, so a file saved to Downloads
   /// and a file sent through the share sheet can never drift apart.
-  static String _buildBackupJson(List<Visit> visits) {
-    final List<Map<String, dynamic>> visitsJson = visits.map((visit) {
+  ///
+  /// When [month] is set the file is stamped `scope: month`, which is what
+  /// tells [readBackupFile] to rewrite that month alone on import.
+  static String _buildBackupJson(List<Visit> visits, {DateTime? month}) {
+    // Sorted so a human opening the file reads the month in order; import does
+    // not depend on it.
+    final ordered = [...visits]..sort((a, b) => a.date.compareTo(b.date));
+
+    final List<Map<String, dynamic>> visitsJson = ordered.map((visit) {
       return {
         'id': visit.id,
         'date': visit.date.toIso8601String(),
@@ -246,18 +358,42 @@ class BackupService {
 
     final Map<String, dynamic> backupData = {
       'version': '2.0',
+      if (month != null) 'scope': 'month',
+      if (month != null) 'month': _monthKey(month),
       'exportDate': DateTime.now().toIso8601String(),
-      'totalVisits': visits.length,
+      'totalVisits': ordered.length,
       'visits': visitsJson,
-      'settings': SettingsService.toMap(),
+      // Deliberately absent from a month file: it may be sent to another
+      // supervisor, and importing one month must not overwrite the receiver's
+      // own report header.
+      if (month == null) 'settings': SettingsService.toMap(),
     };
 
     return const JsonEncoder.withIndent('  ').convert(backupData);
   }
 
-  /// Timestamped so repeated backups never overwrite each other, and so a
-  /// received file names the moment it was taken.
-  static String _backupFileName() {
+  /// `2026-08`, used both in month filenames and as the JSON `month` value.
+  static String _monthKey(DateTime month) =>
+      '${month.year}-${month.month.toString().padLeft(2, '0')}';
+
+  /// Parses the `month` field back, returning null for anything unusable so a
+  /// damaged marker is reported rather than silently treated as a full backup.
+  static DateTime? _parseMonthKey(dynamic raw) {
+    if (raw is! String) return null;
+    final match = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(raw);
+    if (match == null) return null;
+    final year = int.parse(match.group(1)!);
+    final month = int.parse(match.group(2)!);
+    if (month < 1 || month > 12) return null;
+    return DateTime(year, month);
+  }
+
+  /// A month file is named for its month so the receiver can tell at a glance
+  /// which one it is; a full backup stays timestamped so repeated backups
+  /// never overwrite each other.
+  static String _backupFileName({DateTime? month}) {
+    if (month != null) return 'visit_log_${_monthKey(month)}.json';
+
     final String timestamp = DateTime.now()
         .toIso8601String()
         .replaceAll(':', '-')
@@ -308,6 +444,15 @@ class BackupService {
 
   static Future<void> _clearAllVisits() async {
     for (final Visit v in HiveService.getAllVisits()) {
+      await HiveService.deleteVisit(v.id);
+    }
+  }
+
+  /// Clears one month so an imported month file becomes the record for it,
+  /// leaving every other month in the box untouched.
+  static Future<void> _clearMonth(DateTime month) async {
+    for (final Visit v
+        in HiveService.getVisitsByMonth(month.year, month.month)) {
       await HiveService.deleteVisit(v.id);
     }
   }
