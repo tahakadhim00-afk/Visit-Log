@@ -81,13 +81,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.assignment_outlined, color: Colors.teal, size: 36),
+                  // The launcher icon itself, so the sheet identifies the app
+                  // with the same mark the user tapped to open it. Its
+                  // background is transparent, so it needs no tile behind it.
+                  Image.asset(
+                    'lib/assets/newlogo.png',
+                    width: 84,
+                    height: 84,
+                    // Source is 1080², far larger than it draws; capping the
+                    // decode keeps ~4.5 MB of bitmap out of the image cache.
+                    cacheWidth: 256,
                   ),
                   const SizedBox(height: 14),
                   const Text(

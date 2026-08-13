@@ -15,6 +15,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _notificationsEnabled = SettingsService.notificationsEnabled;
 
+  /// Locates the share button so the iPad share popover can point at it.
+  final GlobalKey _shareButtonKey = GlobalKey();
+
   final _supervisorController =
       TextEditingController(text: SettingsService.supervisorName);
   final _specializationController =
@@ -56,6 +59,10 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 16),
               _buildReportInfoCard(),
               const SizedBox(height: 24),
+              _buildSectionTitle('المشاركة'),
+              const SizedBox(height: 16),
+              _buildShareCard(),
+              const SizedBox(height: 24),
               _buildSectionTitle('نسخ احتياطي'),
               const SizedBox(height: 16),
               _buildBackupCard(),
@@ -95,26 +102,17 @@ class _SettingsPageState extends State<SettingsPage> {
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.teal.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            _notificationsEnabled
-                ? Icons.notifications_active
-                : Icons.notifications_off,
-            color: Colors.teal,
-            size: 24,
-          ),
+        leading: Icon(
+          _notificationsEnabled
+              ? Icons.notifications_active
+              : Icons.notifications_off,
+          color: Colors.teal,
+          size: 26,
         ),
         title: const Text('تذكير يومي',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         subtitle: Text(
-          _notificationsEnabled
-              ? 'مفعّل — كل يوم الساعة 12:00 مساءً (عدا الجمعة)'
-              : 'معطّل',
+          _notificationsEnabled ? 'مفعّل' : 'معطّل',
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
         trailing: Switch(
@@ -231,14 +229,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return ListTile(
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: color, size: 24),
-      ),
+      leading: Icon(icon, color: color, size: 26),
       title: Text(title,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
       subtitle: Text(
@@ -250,6 +241,87 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       onTap: _isLoading ? null : onTap,
     );
+  }
+
+  Widget _buildShareCard() {
+    return Container(
+      key: _shareButtonKey,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+          colors: [Color(0xFF00695C), Color(0xFF26A69A)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _isLoading ? null : _shareData,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Row(
+              children: [
+                Icon(Icons.send_rounded, color: Colors.white, size: 26),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'مشاركة الزيارات',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'إرسال ملف JSON عبر واتساب أو تيليجرام أو أي تطبيق آخر',
+                        style: TextStyle(fontSize: 13, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_left, color: Colors.white70, size: 22),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareData() async {
+    setState(() => _isLoading = true);
+    try {
+      final outcome = await BackupService.shareBackupJson(
+        // Anchors the popover on iPad/macOS, where an unanchored sheet throws.
+        sharePositionOrigin: _shareButtonOrigin(),
+      );
+      // Only a cancellation is worth mentioning, and only in passing: on
+      // success the receiving app is already on screen saying so.
+      if (mounted && outcome == ShareOutcome.dismissed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إلغاء المشاركة')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog('خطأ في المشاركة', '$e');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Global rect of the share button, or null if it has not been laid out.
+  Rect? _shareButtonOrigin() {
+    final box = _shareButtonKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   Future<void> _exportData() async {

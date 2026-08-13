@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Rect;
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/visit.dart';
 import 'hive_service.dart';
 import 'settings_service.dart';
@@ -24,6 +26,10 @@ class ImportResult {
   bool get hasLoss => skipped > 0;
 }
 
+/// How a share attempt ended, so the UI can tell "handed to an app" from
+/// "user backed out" without leaking share_plus types into the screens.
+enum ShareOutcome { shared, dismissed, unknown }
+
 /// Thrown for conditions the user can act on; the message is shown as-is,
 /// so it must not be wrapped again by callers.
 class BackupException implements Exception {
@@ -40,45 +46,80 @@ class BackupService {
 
   static Future<String> exportDataToJson() async {
     try {
-      final List<Visit> allVisits = HiveService.getAllVisits();
-
-      final List<Map<String, dynamic>> visitsJson = allVisits.map((visit) {
-        return {
-          'id': visit.id,
-          'date': visit.date.toIso8601String(),
-          'schoolName': visit.schoolName,
-          'notes': visit.notes,
-          'photoPath': visit.photoPath,
-          'visitTime': visit.visitTime?.toIso8601String(),
-          'visitDetails': visit.visitDetails,
-        };
-      }).toList();
-
-      final Map<String, dynamic> backupData = {
-        'version': '2.0',
-        'exportDate': DateTime.now().toIso8601String(),
-        'totalVisits': allVisits.length,
-        'visits': visitsJson,
-        'settings': SettingsService.toMap(),
-      };
-
-      final String jsonString =
-          const JsonEncoder.withIndent('  ').convert(backupData);
-
-      final String timestamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .split('.')
-          .first;
-      final String fileName = 'visit_log_backup_$timestamp.json';
+      final String jsonString = _buildBackupJson(HiveService.getAllVisits());
 
       final Directory saveDir = await _resolveDownloadsDir();
-      final String filePath = '${saveDir.path}/$fileName';
+      final String filePath = '${saveDir.path}/${_backupFileName()}';
       await File(filePath).writeAsString(jsonString, encoding: utf8);
 
       return filePath;
     } catch (e) {
       throw BackupException('خطأ في تصدير البيانات: $e');
+    }
+  }
+
+  // ── SHARE ─────────────────────────────────────────────────────────────────
+
+  /// Hands the backup file to the system share sheet (WhatsApp, Telegram,
+  /// mail, Drive …).
+  ///
+  /// The payload is byte-for-byte what [exportDataToJson] writes, so a file
+  /// received this way restores through "استيراد البيانات" unchanged.
+  ///
+  /// [sharePositionOrigin] anchors the popover on iPad and macOS; it is
+  /// ignored elsewhere.
+  static Future<ShareOutcome> shareBackupJson({
+    Rect? sharePositionOrigin,
+  }) async {
+    final List<Visit> allVisits = HiveService.getAllVisits();
+    if (allVisits.isEmpty) {
+      throw const BackupException('لا توجد زيارات لمشاركتها');
+    }
+
+    final String filePath;
+    try {
+      // Staged in the cache rather than Downloads: sharing should not leave a
+      // second copy behind next to the user's real exports. share_plus copies
+      // the file into its own provider folder before the sheet opens, so this
+      // staging copy is only needed until then.
+      final Directory shareDir =
+          Directory('${(await getTemporaryDirectory()).path}/share');
+      if (await shareDir.exists()) {
+        await shareDir.delete(recursive: true); // drop the previous attempt
+      }
+      await shareDir.create(recursive: true);
+
+      filePath = '${shareDir.path}/${_backupFileName()}';
+      await File(filePath)
+          .writeAsString(_buildBackupJson(allVisits), encoding: utf8);
+    } catch (e) {
+      throw BackupException('خطأ في تجهيز ملف المشاركة: $e');
+    }
+
+    try {
+      // No `text` alongside the file: several messaging apps forward either the
+      // text or the attachment, and the attachment is the point here.
+      final ShareResult result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(filePath, mimeType: 'application/json')],
+          title: 'مشاركة الزيارات',
+          subject: 'نسخة احتياطية من سجل الزيارات',
+          sharePositionOrigin: sharePositionOrigin,
+        ),
+      );
+
+      switch (result.status) {
+        case ShareResultStatus.success:
+          return ShareOutcome.shared;
+        case ShareResultStatus.dismissed:
+          return ShareOutcome.dismissed;
+        case ShareResultStatus.unavailable:
+          // Android/macOS often cannot report what the user picked; the sheet
+          // still opened, so this is not a failure.
+          return ShareOutcome.unknown;
+      }
+    } catch (e) {
+      throw BackupException('تعذّرت مشاركة الملف: $e');
     }
   }
 
@@ -187,6 +228,43 @@ class BackupService {
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
+
+  /// The one place the backup payload is built, so a file saved to Downloads
+  /// and a file sent through the share sheet can never drift apart.
+  static String _buildBackupJson(List<Visit> visits) {
+    final List<Map<String, dynamic>> visitsJson = visits.map((visit) {
+      return {
+        'id': visit.id,
+        'date': visit.date.toIso8601String(),
+        'schoolName': visit.schoolName,
+        'notes': visit.notes,
+        'photoPath': visit.photoPath,
+        'visitTime': visit.visitTime?.toIso8601String(),
+        'visitDetails': visit.visitDetails,
+      };
+    }).toList();
+
+    final Map<String, dynamic> backupData = {
+      'version': '2.0',
+      'exportDate': DateTime.now().toIso8601String(),
+      'totalVisits': visits.length,
+      'visits': visitsJson,
+      'settings': SettingsService.toMap(),
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(backupData);
+  }
+
+  /// Timestamped so repeated backups never overwrite each other, and so a
+  /// received file names the moment it was taken.
+  static String _backupFileName() {
+    final String timestamp = DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .split('.')
+        .first;
+    return 'visit_log_backup_$timestamp.json';
+  }
 
   /// Best-effort Downloads directory, falling back to app storage.
   /// Shared with [ExportService] so the path logic exists in one place.
